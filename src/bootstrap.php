@@ -1,14 +1,19 @@
 <?php
-global $app;
 
-use App\Controller\HomeController;
+use App\Controller\PageController;
 use App\Controller\AuthController;
+use App\Middleware\ApiJsonResponseMiddleware;
 use App\Middleware\ValidateJsonBodyMiddleware;
 
-$app->get('/', HomeController::class . ':index');
+// Web(HTML)
+$app->get('/', PageController::class . ':home');
+$app->get('/login', PageController::class . ':login');
 
-$app->post('/login', AuthController::class . ':login')
-    ->add(new ValidateJsonBodyMiddleware([
-        'email'    => ['required' => true, 'type' => 'string', 'min' => 5, 'max' => 255],
-        'password' => ['required' => true, 'type' => 'string', 'min' => 8, 'max' => 72],
-    ]));
+// API(JSON)
+$app->group('/api', function ($group) {
+    $group->post('/login', AuthController::class . ':login')
+        ->add(new ValidateJsonBodyMiddleware([
+            'email'    => ['required' => true, 'type' => 'string', 'min' => 3, 'max' => 255],
+            'password' => ['required' => true, 'type' => 'string', 'min' => 8, 'max' => 72],
+        ]));
+})->add(new ApiJsonResponseMiddleware());

@@ -10,20 +10,11 @@ use Psr\Http\Server\RequestHandlerInterface;
 
 class ValidateJsonBodyMiddleware implements MiddlewareInterface
 {
-    /**
-     * @param array $rules 예:
-     * [
-     *   'email' => ['required' => true, 'type' => 'string', 'min' => 5, 'max' => 255],
-     *   'age'   => ['required' => false, 'type' => 'int', 'min' => 1, 'max' => 120],
-     * ]
-     */
-    public function __construct(private array $rules)
-    {
-    }
+    public function __construct(private array $rules) {}
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        // Content-Type 검사 (JSON 강제 정책인 라우트에서)
+        // Content-Type 강제
         $ct = $request->getHeaderLine('Content-Type');
         if (stripos($ct, 'application/json') === false) {
             throw new ValidationException(
@@ -34,7 +25,7 @@ class ValidateJsonBodyMiddleware implements MiddlewareInterface
             );
         }
 
-        // POST/PUT/PATCH인데 body가 비었는지 검사 + query로 보낸 실수 힌트
+        // POST/PUT/PATCH인데 body 비었으면 명확하게 에러 + query 힌트
         $method = strtoupper($request->getMethod());
         $raw = (string)$request->getBody();
         $parsed = $request->getParsedBody();
@@ -58,17 +49,15 @@ class ValidateJsonBodyMiddleware implements MiddlewareInterface
             }
         }
 
-        // 기존 로직 시작: parsed body를 "배열(JSON object)"로 강제
         $body = $request->getParsedBody();
-
         if (!is_array($body)) {
             throw new ValidationException('요청 본문(JSON)이 올바르지 않습니다.', 1002, 422, [
                 ['field' => '$body', 'reason' => 'body must be a JSON object'],
             ]);
         }
 
+        // rules 검사
         $errors = [];
-
         foreach ($this->rules as $field => $rule) {
             $required = (bool)($rule['required'] ?? false);
             $exists = array_key_exists($field, $body);
@@ -77,30 +66,25 @@ class ValidateJsonBodyMiddleware implements MiddlewareInterface
                 $errors[] = ['field' => $field, 'reason' => 'required'];
                 continue;
             }
-            if (!$exists) {
-                continue;
-            }
+            if (!$exists) continue;
 
             $value = $body[$field];
 
-            // type 검사
             if (isset($rule['type'])) {
                 $type = $rule['type'];
-                $typeOk = match ($type) {
+                $ok = match ($type) {
                     'string' => is_string($value),
                     'int'    => is_int($value),
                     'bool'   => is_bool($value),
                     'array'  => is_array($value),
                     default  => true,
                 };
-
-                if (!$typeOk) {
+                if (!$ok) {
                     $errors[] = ['field' => $field, 'reason' => "type must be {$type}"];
                     continue;
                 }
             }
 
-            // 문자열 길이 검사
             if (is_string($value)) {
                 if (isset($rule['min']) && mb_strlen($value) < (int)$rule['min']) {
                     $errors[] = ['field' => $field, 'reason' => "min length {$rule['min']}"];
@@ -110,7 +94,6 @@ class ValidateJsonBodyMiddleware implements MiddlewareInterface
                 }
             }
 
-            // 숫자 범위 검사
             if (is_int($value)) {
                 if (isset($rule['min']) && $value < (int)$rule['min']) {
                     $errors[] = ['field' => $field, 'reason' => "min {$rule['min']}"];
@@ -125,6 +108,7 @@ class ValidateJsonBodyMiddleware implements MiddlewareInterface
             throw new ValidationException('요청 파라미터가 유효하지 않습니다.', 1002, 422, $errors);
         }
 
+        // 검증 완료 데이터 전달
         $request = $request->withAttribute('validated', $body);
         return $handler->handle($request);
     }

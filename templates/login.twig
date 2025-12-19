@@ -1,0 +1,40 @@
+{% extends "layout.twig" %}
+
+{% block content %}
+    <h1>로그인</h1>
+
+    <form id="loginForm">
+        <div>
+            <label>Email</label>
+            <input name="email" value="test2">
+        </div>
+        <div>
+            <label>Password</label>
+            <input name="password" type="password" value="12345678">
+        </div>
+        <button type="submit">Login</button>
+    </form>
+
+    <pre id="result"></pre>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = e.target;
+            const payload = {
+                email: form.email.value,
+                password: form.password.value
+            };
+
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload),
+            });
+
+            const data = await res.json();
+            document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+        });
+    </script>
+{% endblock %}

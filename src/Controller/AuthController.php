@@ -10,9 +10,9 @@ class AuthController
 {
     public function login(Request $request, Response $response): Response
     {
-        $v = $request->getAttribute('validated'); // 검증된 값만
-        $email = $v['email'];
-
-        return ApiResponse::success($response, ['email' => $email]);
+        $v = $request->getAttribute('validated'); // 검증 완료 데이터
+        return ApiResponse::success($response, [
+            'email' => $v['email'],
+        ]);
     }
 }
