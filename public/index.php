@@ -9,6 +9,8 @@ use Dotenv\Dotenv;
 use Slim\Factory\AppFactory;
 use Slim\Views\Twig;
 use App\Infrastructure\Database\PdoFactory;
+use App\Steam\SteamWebApiClient;
+use App\Steam\SteamService;
 
 $dotenv = Dotenv::createImmutable(dirname(__DIR__));
 $dotenv->load();
@@ -32,6 +34,18 @@ $container->set(Twig::class, function (): Twig {
 // ✅ PDO 등록 (중요: DSN을 DI가 추론할 수 없으므로 직접 Factory로 생성)
 $container->set(PDO::class, function (): PDO {
     return PdoFactory::create();
+});
+
+$container->set(SteamWebApiClient::class, function () {
+    $key = (string)($_ENV['STEAM_WEB_API_KEY'] ?? '');
+    if ($key === '') {
+        throw new \RuntimeException('Missing env: STEAM_WEB_API_KEY');
+    }
+    return new SteamWebApiClient($key);
+});
+
+$container->set(SteamService::class, function ($c) {
+    return new SteamService($c->get(SteamWebApiClient::class));
 });
 
 // Slim에 컨테이너 설정
