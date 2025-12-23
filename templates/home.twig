@@ -1,56 +1,512 @@
+{# templates/index.twig #}
 {% extends "layout.twig" %}
+{% block title %}Steam 구매 추천 도우미{% endblock %}
 
 {% block content %}
-    <section class="rounded-3xl bg-gradient-to-br from-slate-900 to-slate-700 p-8 text-white shadow-sm">
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-                <p class="text-sm/6 text-white/80">Twig + Tailwind</p>
-                <h1 class="mt-1 text-3xl font-semibold tracking-tight">인덱스 페이지 스타일 테스트</h1>
-                <p class="mt-2 max-w-xl text-white/80">
-                    그라데이션, 둥근 모서리, 타이포그래피, 카드, 버튼이 보이면 CSS 적용이 정상입니다.
-                </p>
+
+    {# 상단 앵커 #}
+    <div id="top"></div>
+
+    {# 상단 고정 툴바 #}
+    <div class="pointer-events-none fixed inset-x-0 top-0 z-50">
+        <div class="pointer-events-auto mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div class="mt-3 flex items-center justify-between rounded-2xl border border-white/10 bg-neutral-950/70 px-3 py-2 backdrop-blur">
+                <div class="flex items-center gap-2">
+                    <span class="grid size-8 place-items-center rounded-xl bg-white/10 ring-1 ring-white/10">🎮</span>
+                    <div class="leading-tight">
+                        <p class="text-xs font-semibold text-white/85">Steam 구매 추천 도우미</p>
+                        <p class="text-[11px] text-white/55">One-page Tool · Free Scroll</p>
+                    </div>
+                </div>
+
+                <div class="hidden items-center gap-1 sm:flex">
+                    <a href="#hero" class="rounded-xl px-3 py-2 text-xs text-white/65 hover:bg-white/5 hover:text-white/85">시작</a>
+                    <a href="#tool" class="rounded-xl px-3 py-2 text-xs text-white/65 hover:bg-white/5 hover:text-white/85">입력</a>
+                    <a href="#result" class="rounded-xl px-3 py-2 text-xs text-white/65 hover:bg-white/5 hover:text-white/85">결과</a>
+                    <a href="#guide" class="rounded-xl px-3 py-2 text-xs text-white/65 hover:bg-white/5 hover:text-white/85">가이드</a>
+                    <a href="#faq" class="rounded-xl px-3 py-2 text-xs text-white/65 hover:bg-white/5 hover:text-white/85">Q&A</a>
+                </div>
+
+                <div class="flex items-center gap-2">
+        <span class="hidden rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-white/60 sm:inline-flex">
+          자유 스크롤
+        </span>
+                    <a href="#tool" class="inline-flex items-center justify-center rounded-xl bg-white px-3 py-2 text-xs font-semibold text-neutral-950 hover:bg-white/90">
+                        App ID 입력
+                    </a>
+                </div>
             </div>
-
-            <div class="flex gap-3">
-                <a href="/login"
-                   class="inline-flex items-center justify-center rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white/90">
-                    로그인 페이지
-                </a>
-                <a href="/api/login"
-                   class="inline-flex items-center justify-center rounded-xl border border-white/30 px-4 py-2 text-sm font-medium text-white hover:bg-white/10">
-                    API 엔드포인트(POST)
-                </a>
-            </div>
-        </div>
-    </section>
-
-    <div class="mt-8 grid gap-6 md:grid-cols-3">
-        <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-            <div class="text-sm text-slate-500">상태</div>
-            <div class="mt-1 text-lg font-semibold">UI 컴포넌트</div>
-            <p class="mt-2 text-sm text-slate-600">카드/텍스트/여백이 자연스럽게 보이면 정상입니다.</p>
-            <div class="mt-4 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                OK
-            </div>
-        </div>
-
-        <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-            <div class="text-sm text-slate-500">테스트</div>
-            <div class="mt-1 text-lg font-semibold">버튼/호버</div>
-            <p class="mt-2 text-sm text-slate-600">마우스를 올리면 호버 효과가 보입니다.</p>
-            <button
-                    class="mt-4 inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                버튼 테스트
-            </button>
-        </div>
-
-        <div class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-            <div class="text-sm text-slate-500">폼</div>
-            <div class="mt-1 text-lg font-semibold">입력 필드</div>
-            <p class="mt-2 text-sm text-slate-600">포커스 링이 보이면 정상입니다.</p>
-            <input
-                    class="mt-4 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-200"
-                    placeholder="포커스 테스트" />
         </div>
     </div>
+
+    {# =========================================================
+  섹션 1: HERO (배경 A) + 상/하단 페이드
+========================================================= #}
+    <section id="hero" class="relative overflow-hidden border-b border-white/10">
+        {# 배경 #}
+        <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+            <div class="absolute inset-0 bg-[radial-gradient(1200px_circle_at_20%_10%,rgba(59,130,246,0.18),transparent_55%),radial-gradient(900px_circle_at_80%_15%,rgba(168,85,247,0.14),transparent_50%)]"></div>
+            <div class="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(to_right,rgba(255,255,255,0.12)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.12)_1px,transparent_1px)] [background-size:64px_64px]"></div>
+        </div>
+
+        {# 상단 페이드(스크롤 전환 부드럽게) #}
+        <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-neutral-950/80 to-transparent"></div>
+
+        {# 실제 콘텐츠(기존 내용을 여기 넣는 게 맞습니다) #}
+        <div class="relative mx-auto flex min-h-dvh max-w-6xl items-center px-4 pt-20 pb-16 sm:px-6 lg:px-8">
+            <div class="w-full">
+                <div class="grid gap-6 lg:grid-cols-12 lg:gap-10">
+                    <div class="lg:col-span-7">
+                        <div class="rounded-3xl border border-white/10 bg-white/[0.03] p-7 shadow-[0_20px_80px_-40px_rgba(0,0,0,0.9)] sm:p-10">
+                            <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-white/70">
+                                <span class="text-white/80">⚡</span> 페이지 이동 없이 결과 표시(Ajax)
+                            </div>
+
+                            <h1 class="mt-4 text-balance text-3xl font-semibold tracking-tight text-white sm:text-5xl">
+                                구매 결정을 대신하지 않고,<br class="hidden sm:block" />
+                                <span class="text-white/70">판단 근거를 빠르게 정리</span>합니다.
+                            </h1>
+
+                            <p class="mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-white/70 sm:text-base">
+                                Steam App ID를 입력하면 점수와 근거를 계산해 보여주는 “의사결정 보조 툴”입니다.
+                                결과는 참고용이며, 취향·가격·플레이 환경을 함께 고려하셔야 합니다.
+                            </p>
+
+                            <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+                                <a href="#tool" class="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-neutral-950 hover:bg-white/90">
+                                    시작하기
+                                </a>
+                                <a href="#guide" class="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm text-white/75 hover:bg-white/5">
+                                    필수 안내 보기
+                                </a>
+                            </div>
+
+                            <div class="mt-6 grid gap-3 sm:grid-cols-3">
+                                <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                                    <p class="text-xs text-white/55">입력</p>
+                                    <p class="mt-1 text-sm font-semibold text-white/90">App ID</p>
+                                    <p class="mt-1 text-xs text-white/60">URL의 숫자</p>
+                                </div>
+                                <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                                    <p class="text-xs text-white/55">출력</p>
+                                    <p class="mt-1 text-sm font-semibold text-white/90">점수 & 근거</p>
+                                    <p class="mt-1 text-xs text-white/60">항목별 공개</p>
+                                </div>
+                                <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                                    <p class="text-xs text-white/55">목적</p>
+                                    <p class="mt-1 text-sm font-semibold text-white/90">결정 보조</p>
+                                    <p class="mt-1 text-xs text-white/60">강요 없음</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-5">
+                        <div class="rounded-3xl border border-white/10 bg-black/30 p-6 shadow-[0_20px_80px_-40px_rgba(0,0,0,0.9)] sm:p-8">
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs text-white/55">Preview</p>
+                                <span class="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] text-white/60">Tool UI</span>
+                            </div>
+
+                            <div class="mt-4 space-y-3">
+                                <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                                    <p class="text-[11px] text-white/55">Input</p>
+                                    <p class="mt-1 text-sm font-semibold text-white/90">App ID: <span class="text-white/70">570</span></p>
+                                </div>
+
+                                <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                                    <div class="flex items-start justify-between">
+                                        <div>
+                                            <p class="text-[11px] text-white/55">Total</p>
+                                            <p class="mt-1 text-2xl font-semibold text-white">74</p>
+                                            <p class="mt-1 text-xs text-white/55">참고용</p>
+                                        </div>
+                                        <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-white/70">
+                                            추천 톤 <span class="font-semibold text-white/85">중립</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4 space-y-2">
+                                        <div class="h-2 overflow-hidden rounded-full bg-white/10">
+                                            <div class="h-full w-[74%] rounded-full bg-white/70"></div>
+                                        </div>
+                                        <p class="text-xs leading-relaxed text-white/60">
+                                            “총점 + 근거 + 도움말”을 같은 페이지에서 확인합니다.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-xs leading-relaxed text-white/60">
+                                    팁: 애매하면 세일/번들, 환불 조건 확인으로 리스크를 낮추세요.
+                                </div>
+                            </div>
+
+                            <a href="#tool" class="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 hover:bg-white/90">
+                                입력 섹션으로 이동
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex items-center justify-center">
+                    <a href="#tool" class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-white/70 hover:bg-white/5">
+                        아래로 스크롤하여 입력하기 <span class="text-white/50">↓</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {# 하단 페이드 #}
+        <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-neutral-950/80 to-transparent"></div>
+    </section>
+
+    {# =========================================================
+  섹션 2: TOOL INPUT (배경 B) + 페이드
+========================================================= #}
+    <section id="tool" class="relative overflow-hidden border-b border-white/10">
+        <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+            <div class="absolute inset-0 bg-[radial-gradient(1000px_circle_at_15%_30%,rgba(16,185,129,0.12),transparent_55%),radial-gradient(900px_circle_at_85%_40%,rgba(59,130,246,0.10),transparent_55%)]"></div>
+            <div class="absolute inset-0 opacity-[0.05] [background-image:linear-gradient(to_right,rgba(255,255,255,0.10)_1px,transparent_1px)] [background-size:72px_72px]"></div>
+        </div>
+
+        <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-neutral-950/80 to-transparent"></div>
+
+        <div class="relative mx-auto flex min-h-dvh max-w-6xl items-center px-4 pt-20 pb-16 sm:px-6 lg:px-8">
+            <div class="w-full">
+                <div class="rounded-3xl border border-white/10 bg-white/[0.03] p-7 shadow-[0_20px_80px_-40px_rgba(0,0,0,0.9)] sm:p-10">
+                    <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="max-w-2xl">
+                            <p class="text-xs text-white/55">Tool · Input</p>
+                            <h2 class="mt-2 text-2xl font-semibold tracking-tight text-white/90 sm:text-3xl">App ID 입력</h2>
+                            <p class="mt-3 text-sm leading-relaxed text-white/65">
+                                Steam 스토어 URL의 숫자 부분입니다.
+                                예: <span class="rounded bg-black/30 px-1.5 py-0.5 text-xs text-white/80">store.steampowered.com/app/570/</span>
+                            </p>
+
+                            <div class="mt-6 grid gap-3 sm:grid-cols-3">
+                                <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                                    <p class="text-xs font-semibold text-white/80">빠르게</p>
+                                    <p class="mt-1 text-xs text-white/60">붙여넣기만 해도 됩니다.</p>
+                                </div>
+                                <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                                    <p class="text-xs font-semibold text-white/80">명확하게</p>
+                                    <p class="mt-1 text-xs text-white/60">근거를 함께 표시합니다.</p>
+                                </div>
+                                <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                                    <p class="text-xs font-semibold text-white/80">안전하게</p>
+                                    <p class="mt-1 text-xs text-white/60">구매 강요는 하지 않습니다.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="w-full max-w-xl">
+                            <form id="scoreForm" method="post" action="{{ base_path|default('') }}/result" class="space-y-4" data-ajax="true" novalidate>
+                                <div class="space-y-2">
+                                    <label for="appId" class="text-sm font-medium text-white/80">Steam App ID</label>
+                                    <div class="relative">
+                                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/40">#</span>
+                                        <input
+                                                id="appId"
+                                                name="app_id"
+                                                inputmode="numeric"
+                                                pattern="[0-9]*"
+                                                autocomplete="off"
+                                                placeholder="예: 570"
+                                                value="{{ app_id|default('') }}"
+                                                class="w-full rounded-2xl border border-white/10 bg-black/30 px-8 py-3 text-base text-white/90 outline-none placeholder:text-white/35 focus:border-white/20 focus:bg-black/40"
+                                        />
+                                        <div class="absolute right-3 top-1/2 -translate-y-1/2">
+                                            <span class="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] text-white/60">숫자만</span>
+                                        </div>
+                                    </div>
+                                    <p class="text-xs text-white/55">입력값은 점수 계산에만 사용됩니다.</p>
+                                </div>
+
+                                <div id="formStatus" class="hidden rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-sm text-white/70">
+                                    계산 중…
+                                </div>
+
+                                <button
+                                        type="submit"
+                                        class="group inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 shadow-sm shadow-black/30 transition active:scale-[0.99] hover:bg-white/90"
+                                >
+                                    결과 보기(현재 페이지)
+                                    <span class="text-neutral-800/80 transition group-hover:translate-x-0.5">→</span>
+                                </button>
+
+                                <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-xs leading-relaxed text-white/60">
+                                    결과는 Ajax로 받아 <span class="text-white/75">결과 섹션</span> 패널을 교체하시면 됩니다.
+                                </div>
+
+                                <div class="flex items-center justify-between">
+                                    <a href="#result" class="text-xs text-white/70 underline decoration-white/20 underline-offset-4 hover:text-white/85">
+                                        결과 섹션으로
+                                    </a>
+                                    <a href="#guide" class="text-xs text-white/70 underline decoration-white/20 underline-offset-4 hover:text-white/85">
+                                        필수 안내(중요)
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex items-center justify-center">
+                    <a href="#result" class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-white/70 hover:bg-white/5">
+                        아래로 스크롤하여 결과 확인 <span class="text-white/50">↓</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-neutral-950/80 to-transparent"></div>
+    </section>
+
+    {# =========================================================
+  섹션 3: RESULT (배경 C) + 페이드
+========================================================= #}
+    <section id="result" class="relative overflow-hidden border-b border-white/10">
+        <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+            <div class="absolute inset-0 bg-[radial-gradient(1100px_circle_at_20%_20%,rgba(168,85,247,0.12),transparent_55%),radial-gradient(900px_circle_at_80%_70%,rgba(16,185,129,0.10),transparent_60%)]"></div>
+            <div class="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(to_bottom,rgba(255,255,255,0.12)_1px,transparent_1px)] [background-size:1px_60px]"></div>
+        </div>
+
+        <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-neutral-950/80 to-transparent"></div>
+
+        <div class="relative mx-auto flex min-h-dvh max-w-6xl items-center px-4 pt-20 pb-16 sm:px-6 lg:px-8">
+            <div class="w-full">
+                <div class="rounded-3xl border border-white/10 bg-white/[0.03] p-7 shadow-[0_20px_80px_-40px_rgba(0,0,0,0.9)] sm:p-10">
+                    <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="max-w-2xl">
+                            <p class="text-xs text-white/55">Tool · Result</p>
+                            <h2 class="mt-2 text-2xl font-semibold tracking-tight text-white/90 sm:text-3xl">결과</h2>
+                            <p class="mt-3 text-sm leading-relaxed text-white/65">
+                                Ajax 응답으로 이 패널이 결과 카드로 교체됩니다.
+                                총점만 보지 마시고, 항목별 근거를 함께 확인해 주세요.
+                            </p>
+                        </div>
+
+                        <div class="w-full max-w-2xl">
+                            <div id="resultPanel" class="rounded-3xl border border-white/10 bg-black/30 p-5 sm:p-7" aria-live="polite">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-white/70">
+                                            상태 <span class="font-semibold text-white/85">대기</span>
+                                        </div>
+                                        <p class="mt-3 text-sm font-semibold text-white/90">아직 결과가 없습니다</p>
+                                        <p class="mt-2 text-xs leading-relaxed text-white/60">
+                                            입력 후 결과를 요청하면 이 패널이 결과 카드로 교체됩니다.
+                                        </p>
+                                    </div>
+                                    <div class="shrink-0 rounded-3xl border border-white/10 bg-white/[0.03] px-4 py-3 text-center">
+                                        <p class="text-[11px] text-white/55">Total</p>
+                                        <p class="mt-1 text-2xl font-semibold text-white">—</p>
+                                        <p class="mt-1 text-[11px] text-white/45">/ 100</p>
+                                    </div>
+                                </div>
+
+                                <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                                    <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                                        <p class="text-sm font-semibold text-white/90">항목 예시</p>
+                                        <p class="mt-1 text-xs text-white/60">여기에 “근거” 텍스트가 표시됩니다.</p>
+                                        <div class="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                                            <div class="h-full w-[35%] rounded-full bg-white/40"></div>
+                                        </div>
+                                    </div>
+                                    <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                                        <p class="text-sm font-semibold text-white/90">항목 예시</p>
+                                        <p class="mt-1 text-xs text-white/60">Ajax로 응답 HTML을 교체하세요.</p>
+                                        <div class="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                                            <div class="h-full w-[55%] rounded-full bg-white/60"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-5 rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-xs leading-relaxed text-white/60">
+                                    면책: 본 도구는 구매를 강요하지 않으며, 결과는 참고용입니다.
+                                </div>
+
+                                <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+                                    <a href="#tool" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/75 hover:bg-white/5">
+                                        다시 입력
+                                    </a>
+                                    <button type="button" class="inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 hover:bg-white/90">
+                                        결과 복사
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex items-center justify-center">
+                    <a href="#guide" class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-white/70 hover:bg-white/5">
+                        아래로 스크롤하여 필수 안내 <span class="text-white/50">↓</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-neutral-950/80 to-transparent"></div>
+    </section>
+
+    {# =========================================================
+  섹션 4: GUIDE (배경 D) + 페이드
+========================================================= #}
+    <section id="guide" class="relative overflow-hidden border-b border-white/10">
+        <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+            <div class="absolute inset-0 bg-[radial-gradient(1100px_circle_at_70%_25%,rgba(59,130,246,0.12),transparent_55%),radial-gradient(900px_circle_at_30%_80%,rgba(245,158,11,0.10),transparent_60%)]"></div>
+            <div class="absolute inset-0 opacity-[0.05] [background-image:linear-gradient(45deg,rgba(255,255,255,0.10)_1px,transparent_1px)] [background-size:56px_56px]"></div>
+        </div>
+
+        <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-neutral-950/80 to-transparent"></div>
+
+        <div class="relative mx-auto flex min-h-dvh max-w-6xl items-center px-4 pt-20 pb-16 sm:px-6 lg:px-8">
+            <div class="w-full">
+                <div class="rounded-3xl border border-white/10 bg-white/[0.03] p-7 shadow-[0_20px_80px_-40px_rgba(0,0,0,0.9)] sm:p-10">
+                    <div class="flex items-start gap-4">
+                        <div class="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/10">
+                            <span class="text-2xl">🧭</span>
+                        </div>
+                        <div class="max-w-3xl">
+                            <p class="text-xs text-white/55">필수 안내</p>
+                            <h2 class="mt-2 text-2xl font-semibold tracking-tight text-white/90 sm:text-3xl">
+                                “총점”보다 중요한 건 “근거”입니다
+                            </h2>
+                            <p class="mt-3 text-sm leading-relaxed text-white/65">
+                                이 툴은 정답을 내려주지 않습니다. 점수는 요약이고, 근거는 판단 재료입니다.
+                                취향/예산/플레이 환경이 우선이며, 애매하면 세일/번들/환불 조건으로 리스크를 줄이시는 것을 권장드립니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 rounded-3xl border border-white/10 bg-black/30 p-6">
+                        <div class="flex items-start gap-3">
+                            <div class="grid size-10 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/10">
+                                <span class="text-lg">⚖️</span>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-white/85">면책(요약)</p>
+                                <p class="mt-2 text-sm leading-relaxed text-white/65">
+                                    본 도구는 정보 제공 목적이며 구매를 강요하지 않습니다.
+                                    점수/메시지는 참고용이고, 실제 만족도는 개인 취향·환경·가격 변동·업데이트에 의해 달라질 수 있습니다.
+                                    최종 구매 판단은 유저에게 있습니다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+                        <a href="#faq" class="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-neutral-950 hover:bg-white/90">
+                            Q&A 보기
+                        </a>
+                        <a href="#tool" class="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm text-white/75 hover:bg-white/5">
+                            다시 입력하러 가기
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-neutral-950/80 to-transparent"></div>
+    </section>
+
+    {# =========================================================
+  섹션 5: FAQ (배경 E) + 페이드 + 세로 리스트
+========================================================= #}
+    <section id="faq" class="relative overflow-hidden">
+        <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+            <div class="absolute inset-0 bg-[radial-gradient(1100px_circle_at_25%_25%,rgba(245,158,11,0.10),transparent_60%),radial-gradient(900px_circle_at_75%_75%,rgba(168,85,247,0.10),transparent_60%)]"></div>
+            <div class="absolute inset-0 opacity-[0.05] [background-image:linear-gradient(to_right,rgba(255,255,255,0.10)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.10)_1px,transparent_1px)] [background-size:88px_88px]"></div>
+        </div>
+
+        <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-neutral-950/80 to-transparent"></div>
+
+        <div class="relative mx-auto flex min-h-dvh max-w-6xl items-center px-4 pt-20 pb-16 sm:px-6 lg:px-8">
+            <div class="w-full">
+                <div class="rounded-3xl border border-white/10 bg-white/[0.03] p-7 shadow-[0_20px_80px_-40px_rgba(0,0,0,0.9)] sm:p-10">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-white/55">Q&A</p>
+                            <h2 class="mt-2 text-2xl font-semibold tracking-tight text-white/90 sm:text-3xl">자주 묻는 질문</h2>
+                        </div>
+                        <a href="#hero" class="hidden rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-white/70 hover:bg-white/5 sm:inline-flex">
+                            시작 섹션으로
+                        </a>
+                    </div>
+
+                    {# ✅ 세로 리스트: 펼쳐도 옆 항목에 영향 없음 #}
+                    <div class="mt-6 space-y-3">
+                        <details class="group rounded-2xl border border-white/10 bg-white/[0.02] p-4 open:bg-white/[0.03]">
+                            <summary class="flex cursor-pointer list-none items-center justify-between gap-3">
+                                <span class="text-sm font-semibold text-white/85">총점이 높으면 무조건 사도 되나요?</span>
+                                <span class="text-white/50 transition group-open:rotate-180">▾</span>
+                            </summary>
+                            <div class="mt-3 text-sm leading-relaxed text-white/65">
+                                아닙니다. 총점은 요약입니다. “근거 항목”을 먼저 보고, 취향/예산/환경을 우선하세요.
+                            </div>
+                        </details>
+
+                        <details class="group rounded-2xl border border-white/10 bg-white/[0.02] p-4 open:bg-white/[0.03]">
+                            <summary class="flex cursor-pointer list-none items-center justify-between gap-3">
+                                <span class="text-sm font-semibold text-white/85">총점이 낮으면 절대 사면 안 되나요?</span>
+                                <span class="text-white/50 transition group-open:rotate-180">▾</span>
+                            </summary>
+                            <div class="mt-3 text-sm leading-relaxed text-white/65">
+                                아닙니다. 취향이 맞으면 낮아도 만족할 수 있습니다. 다만 리스크 항목을 확인해 보세요.
+                            </div>
+                        </details>
+
+                        <details class="group rounded-2xl border border-white/10 bg-white/[0.02] p-4 open:bg-white/[0.03]">
+                            <summary class="flex cursor-pointer list-none items-center justify-between gap-3">
+                                <span class="text-sm font-semibold text-white/85">이 툴은 구매를 강요하나요?</span>
+                                <span class="text-white/50 transition group-open:rotate-180">▾</span>
+                            </summary>
+                            <div class="mt-3 text-sm leading-relaxed text-white/65">
+                                강요하지 않습니다. 참고 정보를 제공하며, 최종 판단은 유저에게 있습니다.
+                            </div>
+                        </details>
+
+                        <details class="group rounded-2xl border border-white/10 bg-white/[0.02] p-4 open:bg-white/[0.03]">
+                            <summary class="flex cursor-pointer list-none items-center justify-between gap-3">
+                                <span class="text-sm font-semibold text-white/85">점수는 무엇을 의미하나요?</span>
+                                <span class="text-white/50 transition group-open:rotate-180">▾</span>
+                            </summary>
+                            <div class="mt-3 text-sm leading-relaxed text-white/65">
+                                여러 요소를 요약한 지표입니다. 단일 점수보다 “항목별 점수/근거”를 함께 보시는 게 좋습니다.
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="mt-8 rounded-3xl border border-white/10 bg-black/30 p-6">
+                        <p class="text-sm font-semibold text-white/85">면책(상세 요약)</p>
+                        <p class="mt-2 text-sm leading-relaxed text-white/65">
+                            본 서비스는 정보 제공 목적이며, 구매/비구매에 대한 책임을 대신하지 않습니다.
+                            점수는 내부 로직에 따른 참고값이고, 가격 변동/업데이트/개인 환경에 따라 결과 해석이 달라질 수 있습니다.
+                        </p>
+                    </div>
+
+                    <div class="mt-6 flex flex-col gap-3 sm:flex-row">
+                        <a href="#tool" class="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-neutral-950 hover:bg-white/90">
+                            다시 계산하기
+                        </a>
+                        <a href="#result" class="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm text-white/75 hover:bg-white/5">
+                            결과 섹션으로
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div aria-hidden="true" class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-neutral-950/80 to-transparent"></div>
+    </section>
+
+    {# 좌측 하단 플로팅 "맨 위로" 버튼 #}
+    <a href="#top"
+            class="fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-neutral-950/80 px-4 py-3 text-sm font-semibold text-white/85 shadow-sm shadow-black/40 backdrop-blur hover:bg-neutral-950/90"
+            aria-label="맨 위로">
+        <span class="grid size-8 place-items-center rounded-xl bg-white/10 ring-1 ring-white/10">↑</span>
+        <span class="hidden sm:inline">맨 위로</span>
+    </a>
+
 {% endblock %}
