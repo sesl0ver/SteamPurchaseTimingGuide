@@ -69,11 +69,11 @@ Steam **게임 / 패키지(Sub) / 번들(Bundle)**의 가격·할인·역대 최
 
 ## 🛠 기술 스택
 
-* **Backend**: PHP 8.x, Slim Framework 4
+* **Backend**: PHP 8.5, Slim Framework 4
 * **Template Engine**: Twig
 * **Frontend**: Tailwind CSS, Vanilla JavaScript
 * **Cache**: Redis
-* **Database**: MySQL
+* **Database**: PostgreSQL
 
 ---
 
