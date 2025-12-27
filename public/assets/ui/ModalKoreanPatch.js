@@ -1,3 +1,4 @@
+// ModalKoreanPatch.js (UPDATED: 최근 갱신 표시를 사용자 친화 형식으로 변환)
 import { escapeHtml, escapeHtmlWithBreaks } from "../core/utils.js";
 
 export class ModalKoreanPatch {
@@ -25,7 +26,9 @@ export class ModalKoreanPatch {
                 let desc = d;
 
                 if (t && (t.includes("\n") || t.includes("\r"))) {
-                    const lines = (t.split(/\r\n|\n|\r/) || []).map((x) => x.trim()).filter(Boolean);
+                    const lines = (t.split(/\r\n|\n|\r/) || [])
+                        .map((x) => x.trim())
+                        .filter(Boolean);
                     if (lines.length >= 2) {
                         headline = lines[0];
                         desc = desc || lines.slice(1).join("\n");
@@ -37,11 +40,48 @@ export class ModalKoreanPatch {
             .filter(Boolean);
     }
 
+    /**
+     * updatedAt(ISO/offset 포함 가능)을 사용자 친화 형식으로 변환
+     * - 출력 예: "2025년 12월 27일 18:36"
+     * - 파싱 불가/값 없음: 표시 생략
+     */
+    static formatUpdatedAtKo(updatedAt) {
+        if (!updatedAt) return "";
+
+        const raw = String(updatedAt).trim();
+        if (!raw) return "";
+
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return "";
+
+        const tz = "Asia/Seoul";
+        const parts = new Intl.DateTimeFormat("ko-KR", {
+            timeZone: tz,
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+        }).formatToParts(d);
+
+        const y = parts.find((p) => p.type === "year")?.value;
+        const mo = parts.find((p) => p.type === "month")?.value;
+        const da = parts.find((p) => p.type === "day")?.value;
+        const hh = parts.find((p) => p.type === "hour")?.value;
+        const mm = parts.find((p) => p.type === "minute")?.value;
+
+        if (!y || !mo || !da || !hh || !mm) return "";
+
+        return `${y}년 ${Number(mo)}월 ${Number(da)}일 ${hh}:${mm}`;
+    }
+
     open(rawItems, updatedAt = null) {
         this.close();
 
         this.#backdrop = document.createElement("div");
-        this.#backdrop.className = "fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm";
+        this.#backdrop.className =
+            "fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm";
         this.#backdrop.addEventListener("click", () => this.close());
 
         this.#modal = document.createElement("div");
@@ -58,31 +98,35 @@ export class ModalKoreanPatch {
                 const url = escapeHtml(x.url);
 
                 return `
-          <div class="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-            <a href="${url}" target="_blank" rel="noopener noreferrer"
-               class="block text-sm font-semibold text-white/85 hover:text-white break-all">
-              ${head}
-            </a>
+          <a href="${url}" target="_blank" rel="noopener noreferrer"
+             class="block rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3
+                    transition-colors duration-150
+                    hover:bg-white/[0.06] focus-visible:bg-white/[0.06]
+                    focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/10">
+            <p class="text-sm font-semibold text-white/85">${head}</p>
             <p class="mt-1 text-[11px] text-white/45 break-all">${url}</p>
             ${
                     desc
                         ? `<div class="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs leading-relaxed text-white/70">
-                   ${desc}
-                 </div>`
+                     ${desc}
+                   </div>`
                         : ""
                 }
-          </div>
+          </a>
         `;
             })
             .join("");
 
-        const updatedText = updatedAt ? `최근 갱신: ${escapeHtml(updatedAt)}` : "";
+        const updatedPretty = ModalKoreanPatch.formatUpdatedAtKo(updatedAt);
+        const updatedText = updatedPretty ? `최근 갱신: ${escapeHtml(updatedPretty)}` : "";
 
         this.#modal.innerHTML = `
       <div class="flex items-center justify-between">
         <div>
           <p class="text-sm font-semibold text-white/85">유저 한글패치</p>
-          <p class="mt-1 text-xs text-white/50">링크를 클릭하면 새 창에서 열립니다. ${updatedText}</p>
+          <p class="mt-1 text-xs text-white/50">링크를 클릭하면 새 창에서 열립니다.${
+            updatedText ? ` ${updatedText}` : ""
+        }</p>
         </div>
         <button type="button"
           class="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/70 hover:bg-white/[0.06]"
@@ -98,7 +142,9 @@ export class ModalKoreanPatch {
       </div>
     `;
 
-        this.#modal.querySelector("[data-close]")?.addEventListener("click", () => this.close());
+        this.#modal
+            .querySelector("[data-close]")
+            ?.addEventListener("click", () => this.close());
 
         document.addEventListener(
             "keydown",

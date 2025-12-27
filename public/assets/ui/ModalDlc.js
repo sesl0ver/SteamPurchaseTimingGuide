@@ -15,7 +15,8 @@ export class ModalDlc {
         this.close();
 
         this.#backdrop = document.createElement("div");
-        this.#backdrop.className = "fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm";
+        this.#backdrop.className =
+            "fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm";
         this.#backdrop.addEventListener("click", () => this.close());
 
         this.#modal = document.createElement("div");
@@ -24,6 +25,8 @@ export class ModalDlc {
             "rounded-3xl border border-white/10 bg-neutral-950/95 p-5 shadow-2xl";
 
         const arr = Array.isArray(items) ? items : [];
+
+        // ✅ 모달 내부에서만 hover 배경 강조: DLC 행도 가능한 경우 전체를 <a>로 구성
         const listHtml = arr
             .map((d) => {
                 const name = escapeHtml(d?.name || "");
@@ -32,22 +35,41 @@ export class ModalDlc {
                 const amount = d?.price?.amount ?? d?.amount ?? null;
                 const cur = d?.price?.currency || d?.currency || currency;
 
-                const priceText = amount == null ? "가격 정보 없음" : Number(amount) === 0 ? "무료" : formatPrice(amount, cur);
-                const href = appid ? `https://store.steampowered.com/app/${encodeURIComponent(appid)}/` : null;
+                const priceText =
+                    amount == null
+                        ? "가격 정보 없음"
+                        : Number(amount) === 0
+                            ? "무료"
+                            : formatPrice(amount, cur);
 
-                return `
-          <div class="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                const href = appid
+                    ? `https://store.steampowered.com/app/${encodeURIComponent(appid)}/`
+                    : null;
+
+                const rowInner = `
+          <div class="flex items-center justify-between gap-3 px-4 py-3">
             <div class="min-w-0">
-              ${
-                    href
-                        ? `<a href="${href}" target="_blank" rel="noopener noreferrer"
-                       class="block truncate text-sm font-medium text-white/85 hover:text-white">${name}</a>`
-                        : `<p class="truncate text-sm font-medium text-white/85">${name}</p>`
-                }
+              <p class="truncate text-sm font-medium text-white/85">${name}</p>
               ${appid ? `<p class="mt-0.5 text-[11px] text-white/40">AppID ${escapeHtml(appid)}</p>` : ""}
             </div>
             <div class="shrink-0 text-xs text-white/70">${escapeHtml(priceText)}</div>
           </div>
+        `;
+
+                if (href) {
+                    return `
+            <a href="${href}" target="_blank" rel="noopener noreferrer"
+               class="block rounded-2xl border border-white/10 bg-white/[0.03]
+                      transition-colors duration-150
+                      hover:bg-white/[0.06] focus-visible:bg-white/[0.06]
+                      focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/10">
+              ${rowInner}
+            </a>
+          `;
+                }
+
+                return `
+          <div class="rounded-2xl border border-white/10 bg-white/[0.03]">${rowInner}</div>
         `;
             })
             .join("");
@@ -55,7 +77,9 @@ export class ModalDlc {
         this.#modal.innerHTML = `
       <div class="flex items-center justify-between">
         <div>
-          <p class="text-sm font-semibold text-white/85">${escapeHtml(title || "DLC 목록")}</p>
+          <p class="text-sm font-semibold text-white/85">${escapeHtml(
+            title || "DLC 목록"
+        )}</p>
           <p class="mt-1 text-xs text-white/50">DLC를 클릭하면 Steam 상점 페이지를 새 창으로 엽니다.</p>
         </div>
         <button type="button"
@@ -68,7 +92,9 @@ export class ModalDlc {
       </div>
     `;
 
-        this.#modal.querySelector("[data-close]")?.addEventListener("click", () => this.close());
+        this.#modal
+            .querySelector("[data-close]")
+            ?.addEventListener("click", () => this.close());
 
         document.addEventListener(
             "keydown",
