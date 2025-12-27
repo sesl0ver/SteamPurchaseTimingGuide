@@ -5,16 +5,61 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}Steam 구매 추천 도우미{% endblock %}</title>
-
-    {# Tailwind v4 build 결과물 CSS를 연결하세요 #}
     <link rel="stylesheet" href="/assets/app.css" />
     <style>
-        html {
-            scroll-behavior: smooth;
-        }
-    </style>
+        /* ===== Tone presets (pure CSS, unified green for positive) ===== */
 
-    {# 필요 시 폰트/아이콘은 여기서 추가 #}
+        /* 가격(할인율) */
+        .tone-price-high{border-color:rgba(52,211,153,.36);background-color:rgba(16,185,129,.10);}
+        .tone-price-mid{border-color:rgba(52,211,153,.28);background-color:rgba(16,185,129,.08);}
+        .tone-price-low{border-color:rgba(255,255,255,.16);background-color:rgba(255,255,255,.035);}
+        .tone-price-none{border-color:rgba(255,255,255,.10);background-color:rgba(255,255,255,.02);}
+
+        /* 가격 이력 */
+        .tone-history-lowest{border-color:rgba(52,211,153,.36);background-color:rgba(16,185,129,.10);} /* 역대 최저가 = 긍정(녹색) */
+        .tone-history-known{border-color:rgba(148,163,184,.30);background-color:rgba(148,163,184,.07);} /* 이력 있음(최저 아님) = 중립(slate) */
+        .tone-history-unknown{border-color:rgba(255,255,255,.10);background-color:rgba(255,255,255,.02);} /* 이력 불충분 = 기본 */
+
+        /* 유저 반응 */
+        .tone-review-high{border-color:rgba(52,211,153,.28);background-color:rgba(16,185,129,.08);}
+        .tone-review-mid{border-color:rgba(148,163,184,.26);background-color:rgba(148,163,184,.06);}
+        .tone-review-low{border-color:rgba(251,113,133,.28);background-color:rgba(244,63,94,.08);}
+        .tone-review-unknown{border-color:rgba(255,255,255,.10);background-color:rgba(255,255,255,.02);}
+
+        /* 할인 기간 */
+        .tone-sale-on{border-color:rgba(52,211,153,.24);background-color:rgba(16,185,129,.06);} /* 진행 중(여유) = 녹색 */
+        .tone-sale-soon{border-color:rgba(252,211,77,.32);background-color:rgba(251,191,36,.09);} /* 1~2일 남음 = 주의(amber) */
+        .tone-sale-today{border-color:rgba(253,164,175,.34);background-color:rgba(251,113,133,.10);} /* 오늘 종료 = 경고(rose) */
+        .tone-sale-off{border-color:rgba(255,255,255,.10);background-color:rgba(255,255,255,.02);} /* 정보 없음/미할인 = 기본 */
+
+        /* 선택: 강조 카드 인셋 라인 */
+        .tone-price-high,.tone-price-mid,.tone-history-lowest,.tone-history-known,.tone-review-high,.tone-review-mid,.tone-review-low,.tone-sale-on,.tone-sale-soon,.tone-sale-today{box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);}
+
+        /* 기존 스타일들 */
+        html { scroll-behavior: smooth; }
+        @keyframes wave {
+            0%   { transform: translateY(0); opacity: .6; }
+            30%  { transform: translateY(-6px); opacity: 1; }
+            60%  { transform: translateY(0); opacity: .8; }
+            100% { opacity: .6; }
+        }
+        .loading-wave { display: inline-block; animation: wave 1.4s ease-in-out infinite; }
+        .loading-wave:nth-child(1)  { animation-delay: 0s; }
+        .loading-wave:nth-child(2)  { animation-delay: .05s; }
+        .loading-wave:nth-child(3)  { animation-delay: .1s; }
+        .loading-wave:nth-child(4)  { animation-delay: .15s; }
+        .loading-wave:nth-child(5)  { animation-delay: .2s; }
+        .loading-wave:nth-child(6)  { animation-delay: .25s; }
+        .loading-wave:nth-child(7)  { animation-delay: .3s; }
+        .loading-wave:nth-child(8)  { animation-delay: .35s; }
+        .loading-wave:nth-child(9)  { animation-delay: .4s; }
+        .loading-wave:nth-child(10) { animation-delay: .45s; }
+        .loading-wave:nth-child(11) { animation-delay: .5s; }
+        .loading-wave:nth-child(12) { animation-delay: .55s; }
+        .loading-wave:nth-child(13) { animation-delay: .6s; }
+        .loading-wave:nth-child(14) { animation-delay: .65s; }
+        .loading-wave:nth-child(15) { animation-delay: .7s; }
+    </style>
 </head>
 
 <body class="min-h-dvh bg-neutral-950 text-neutral-100">
@@ -28,48 +73,26 @@
     {% block content %}{% endblock %}
 </main>
 
-<footer class="relative border-t border-white/10">
-    {# 은은한 배경 처리 #}
-    <div aria-hidden="true" class="pointer-events-none absolute inset-0">
-        <div class="absolute inset-0 bg-[radial-gradient(900px_circle_at_50%_-20%,rgba(255,255,255,0.06),transparent_60%)]"></div>
-    </div>
+<footer class="relative mt-12 border-t border-white/5">
+    <div class="mx-auto max-w-5xl px-4 py-6 text-center">
 
-    <div class="relative mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-        <div class="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
+        <p class="text-xs text-white/40 leading-relaxed">
+            본 서비스는 Valve 또는 Steam의 공식 서비스가 아니며,
+            Valve Corporation과 제휴·후원·승인을 받지 않았습니다.<br />
+            “Steam” 및 관련 표기는 Valve Corporation의 상표 또는 등록 상표일 수 있습니다.
+        </p>
 
-            {# 좌측: 라이선스 고지 (톤 다운) #}
-            <div class="max-w-3xl">
-                <p class="text-sm font-semibold text-white/70">
-                    Steam / 라이선스 고지
-                </p>
-                <p class="mt-3 text-sm leading-relaxed text-white/55">
-                    본 서비스는 Valve 또는 Steam의 공식 서비스가 아니며,
-                    Valve Corporation과 제휴·후원·승인을 받지 않았습니다.
-                    “Steam” 및 관련 표기는 Valve Corporation의 상표 또는 등록 상표일 수 있습니다.
-                </p>
-                <p class="mt-3 text-xs leading-relaxed text-white/45">
-                    본 페이지의 추천 결과는 정보 제공 목적이며, 구매 결정을 강요하지 않습니다.
-                </p>
-            </div>
+        <p class="mt-2 text-[11px] text-white/35">
+            본 페이지의 정보는 참고용이며, 구매 결정은 사용자 본인에게 있습니다.
+        </p>
 
-            {# 우측: 카피라이트 (카드 제거 → 텍스트화) #}
-            <div class="text-sm text-white/55 lg:text-right">
-                <p class="font-medium text-white/70">© {{ "now"|date("Y") }}</p>
-                <p class="mt-1">
-                    Steam Purchase Assistant Tool
-                </p>
-                <p class="mt-2 text-xs text-white/45">
-                    All rights reserved.
-                </p>
-            </div>
-        </div>
+        <p class="mt-4 text-[11px] text-white/30">
+            © {{ "now"|date("Y") }} Steam Purchase Timing Guide
+        </p>
 
-        {# 최하단 여백 + 종결선 #}
-        <div class="mt-10 flex items-center justify-center">
-            <span class="h-px w-24 bg-white/10"></span>
-        </div>
     </div>
 </footer>
+
 
 
 {% block scripts %}{% endblock %}
