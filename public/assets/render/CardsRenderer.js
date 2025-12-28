@@ -239,13 +239,26 @@ export class CardsRenderer {
         // -----------------------------
         const dealStatus = String(deal?.status || "").toLowerCase();
 
-        const pkgCount = Array.isArray(steamItem?.packages) ? steamItem.packages.length : 0;
-        const groupsRaw = steamItem?.package_groups || steamItem?.packageGroups || steam?.package_groups;
-        const groupCount = Array.isArray(groupsRaw) ? groupsRaw.length : 0;
+        // ✅ 서버에서 purchasable_signals를 제공하면 그 값을 우선 사용(응답 축소 목적)
+        const signals = steamItem?.purchasable_signals || null;
 
-        const hasSteamPrice =
-            steamItem?.price &&
-            (Number.isFinite(Number(steamItem.price.final)) || Number.isFinite(Number(steamItem.price.regular)));
+        const pkgCount = Number.isFinite(Number(signals?.packages_count))
+            ? Number(signals.packages_count)
+            : Array.isArray(steamItem?.packages)
+                ? steamItem.packages.length
+                : 0;
+
+        const groupCount = Number.isFinite(Number(signals?.package_groups_count))
+            ? Number(signals.package_groups_count)
+            : (() => {
+                const groupsRaw = steamItem?.package_groups || steamItem?.packageGroups || steam?.package_groups;
+                return Array.isArray(groupsRaw) ? groupsRaw.length : 0;
+            })();
+
+        const hasSteamPrice = typeof signals?.has_steam_price === "boolean"
+            ? signals.has_steam_price
+            : (steamItem?.price &&
+                (Number.isFinite(Number(steamItem.price.final)) || Number.isFinite(Number(steamItem.price.regular))));
 
         const isPurchasableBySteamSignals = pkgCount > 0 || groupCount > 0 || hasSteamPrice;
 
@@ -334,24 +347,48 @@ export class CardsRenderer {
         // history card + ✅ tone
         // -----------------------------
         const low = deal?.historical_low;
+        const regularForHistory = deal?.current?.regular_price ?? steamItem?.price?.regular ?? null;
+        const lowEqualsRegular =
+            low?.amount != null &&
+            regularForHistory != null &&
+            Number.isFinite(Number(low.amount)) &&
+            Number.isFinite(Number(regularForHistory)) &&
+            Number(low.amount) > 0 &&
+            Number(regularForHistory) > 0 &&
+            Number(low.amount) === Number(regularForHistory);
         const historyTone = this.#toneForHistory(low);
 
         const historyCard =
             low?.amount != null
                 ? (() => {
                     const seen = formatDate(low.last_seen_at);
-                    const dpText = Number.isFinite(Number(low.discount_percent))
-                        ? `과거 ${Number(low.discount_percent)}% 최저가 기록이 있습니다`
-                        : "과거 최저가 기록이 있습니다";
 
-                    return this.createCard(
-                        "가격 이력",
-                        low.is_lowest_now ? "역대 최저가" : dpText,
-                        `최저가 ${formatPrice(low.amount, low.currency || currency)}${seen ? " (기준: " + seen + ")" : ""}`,
-                        historyTone
-                    );
+                    const dpNum = Number.isFinite(Number(low.discount_percent))
+                        ? Number(low.discount_percent)
+                        : null;
+
+                    // 역대 최저가가 정가와 동일하면, "0% 최저가"처럼 보이는 표현을 피하고
+                    // 사용자가 즉시 이해할 수 있도록 "(정가)"를 명시합니다.
+                    const titleText = lowEqualsRegular
+                        ? "역대 최저가 (정가)"
+                        : low.is_lowest_now
+                            ? "역대 최저가"
+                            : dpNum != null && dpNum > 0
+                                ? `과거 ${dpNum}% 최저가 기록이 있습니다`
+                                : "과거 최저가 기록이 있습니다";
+
+                    const desc = `최저가 ${formatPrice(low.amount, low.currency || currency)}${
+                        lowEqualsRegular ? " (정가)" : ""
+                    }${seen ? " (기준: " + seen + ")" : ""}`;
+
+                    return this.createCard("가격 이력", titleText, desc, historyTone);
                 })()
-                : this.createCard("가격 이력", "확인 불가", deal?.message || "가격 히스토리 정보를 확인할 수 없습니다.", historyTone);
+                : this.createCard(
+                    "가격 이력",
+                    "확인 불가",
+                    deal?.message || "가격 히스토리 정보를 확인할 수 없습니다.",
+                    historyTone
+                );
 
         // -----------------------------
         // sale / purchase info card + ✅ tone (할인 기간 카드일 때만)
@@ -390,7 +427,7 @@ export class CardsRenderer {
             const reviewTone = this.#toneForReview(total, pos, kind);
             fourthCard = this.createCard("유저 반응", reviewMain, reviewDesc, reviewTone);
         } else {
-            fourthCard = this.createCard("구성", "정보", "구성 정보는 상단에서 확인하세요.");
+            fourthCard = this.createCard("구성", "정보", "구성 정보는 상점 페이지에서 확인하세요.");
         }
 
         // -----------------------------
@@ -452,9 +489,17 @@ export class CardsRenderer {
                 dlcCache = dlc;
             }
 
-            // 구매 옵션 (1개면 버튼 숨김)
-            const packageGroups = steamItem?.package_groups || steamItem?.packageGroups || steam?.package_groups;
-            const pkg = this.extractPackageOptionsFromPackageGroups(packageGroups, currency);
+            // 구매 옵션 (서버 제공 purchase_options 우선, 없으면 legacy(package_groups) 파싱 fallback)
+            const serverPkg = steamItem?.purchase_options || null;
+            const pkg = serverPkg?.items
+                ? {
+                    title: serverPkg?.title || "구매 옵션",
+                    items: Array.isArray(serverPkg.items) ? serverPkg.items : [],
+                }
+                : (() => {
+                    const packageGroups = steamItem?.package_groups || steamItem?.packageGroups || steam?.package_groups;
+                    return this.extractPackageOptionsFromPackageGroups(packageGroups, currency);
+                })();
             const items = Array.isArray(pkg?.items) ? pkg.items : [];
             const showOptionsBtn = items.length >= 2;
 

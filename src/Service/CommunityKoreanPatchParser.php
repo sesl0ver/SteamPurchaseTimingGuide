@@ -59,36 +59,80 @@ final class CommunityKoreanPatchParser
         }
 
         // 1) 줄 단위 분리 (CRLF/LF 모두 대응)
-        $lines = preg_split("/\r\n|\n|\r/", $patchText) ?: [];
-        $lines = array_values(array_filter(array_map('trim', $lines), static fn($v) => $v !== ''));
+        // - 기존 포맷은 "한 줄 = 한 링크"였지만, 실제 데이터에는
+        //   "URL | 제목" 다음 줄들에 참여자/역할 등 설명이 이어지는 케이스가 존재합니다.
+        // - 따라서 URL 라인을 "앵커"로 보고, 다음 URL이 나오기 전까지의 모든 줄을
+        //   해당 링크의 title(멀티라인)로 누적합니다.
+        $rawLines = preg_split("/\r\n|\n|\r/", $patchText) ?: [];
 
+        /** @var list<array{url:string, _title_lines:list<string>}> $items */
         $items = [];
+        $currentIndex = null;
 
-        foreach ($lines as $line) {
-            // 2) "URL | 설명" 형식. | 가 없을 수도 있으니 방어적으로 처리
-            $parts = array_map('trim', explode('|', $line, 2));
-            $url = $parts[0] ?? '';
-            $title = $parts[1] ?? '';
+        foreach ($rawLines as $rawLine) {
+            // 오른쪽 공백만 제거하고, URL 탐지는 trim()된 문자열로 수행
+            $line = rtrim((string)$rawLine);
+            $trimmed = trim($line);
 
-            // URL이 아니면 이 라인은 무시(또는 title로 흡수) - 운영 안정성 우선
-            if ($url === '' || !$this->looksLikeUrl($url)) {
+            // 빈 줄도 블록 내에서는 의미가 있을 수 있어 보존(단, 링크 시작 전에는 무시)
+            if ($trimmed === '') {
+                if ($currentIndex !== null) {
+                    $items[$currentIndex]['_title_lines'][] = '';
+                }
                 continue;
             }
 
-            // title이 비어있으면 도메인/기본값이라도 넣고 싶으면 여기서 처리 가능
-            $items[] = [
-                'url' => $url,
-                'title' => $title,
+            // 2) "URL | 설명" 형식. | 가 없을 수도 있으니 방어적으로 처리
+            $parts = array_map('trim', explode('|', $trimmed, 2));
+            $url = $parts[0] ?? '';
+            $title = $parts[1] ?? '';
+
+            // URL 라인이면 새 아이템 시작
+            if ($url !== '' && $this->looksLikeUrl($url)) {
+                $items[] = [
+                    'url' => $url,
+                    '_title_lines' => $title !== '' ? [$title] : [],
+                ];
+                $currentIndex = count($items) - 1;
+                continue;
+            }
+
+            // URL이 아닌 라인은 직전 URL 아이템의 설명으로 누적
+            if ($currentIndex !== null) {
+                $items[$currentIndex]['_title_lines'][] = $trimmed;
+            }
+        }
+
+        // 3) 최종 title/description 구성
+        $finalItems = [];
+        foreach ($items as $it) {
+            $lines = $it['_title_lines'];
+
+            while ($lines !== [] && trim((string)($lines[0] ?? '')) === '') {
+                array_shift($lines);
+            }
+            while ($lines !== [] && trim((string)($lines[count($lines) - 1] ?? '')) === '') {
+                array_pop($lines);
+            }
+
+            $description = implode("\n", $lines);
+
+            $finalItems[] = [
+                // 제목은 URL 그대로 사용 (이미지 상단 타이틀용)
+                'url' => $it['url'],
+                'description' => $description !== ''
+                    ? $description
+                    : $it['url'],
             ];
         }
 
         // 3) link_count와 실제 라인 수가 다를 수 있음 (구 데이터 호환용)
         // - 현재 포맷에서는 items 기준이 진실이므로 items만으로 exists 결정
-        $exists = count($items) > 0;
+        $exists = count($finalItems) > 0;
 
         return [
             'exists' => $exists,
-            'items' => $items,
+            'items' => $finalItems,
             'updated_at' => $updatedAt,
             'evidence' => 'db.community_korean_patch',
         ];

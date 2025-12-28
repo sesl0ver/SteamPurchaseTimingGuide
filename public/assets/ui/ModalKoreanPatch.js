@@ -19,23 +19,21 @@ export class ModalKoreanPatch {
                 const url = String(it?.url || it?.href || "").trim();
                 if (!url) return null;
 
-                const t = String(it?.title || it?.name || it?.text || "").trim();
-                const d = String(it?.desc || it?.description || "").trim();
+                const d = String(it?.description || "").trim();
 
-                let headline = t;
-                let desc = d;
+                let description = d;
 
-                if (t && (t.includes("\n") || t.includes("\r"))) {
-                    const lines = (t.split(/\r\n|\n|\r/) || [])
+                if (d && (d.includes("\n") || d.includes("\r"))) {
+                    const lines = (d.split(/\r\n|\n|\r/) || [])
                         .map((x) => x.trim())
                         .filter(Boolean);
                     if (lines.length >= 2) {
-                        headline = lines[0];
-                        desc = desc || lines.slice(1).join("\n");
+                        // description = lines[0];
+                        description = description || lines.slice(1).join("\n");
                     }
                 }
 
-                return { url, headline: headline || "설명 없음", desc: desc || "" };
+                return { url, description: description || "설명 없음" };
             })
             .filter(Boolean);
     }
@@ -93,8 +91,7 @@ export class ModalKoreanPatch {
 
         const listHtml = items
             .map((x) => {
-                const head = escapeHtml(x.headline);
-                const desc = x.desc ? escapeHtmlWithBreaks(x.desc) : "";
+                const description = x.description ? escapeHtmlWithBreaks(x.description) : "";
                 const url = escapeHtml(x.url);
 
                 return `
@@ -103,12 +100,11 @@ export class ModalKoreanPatch {
                     transition-colors duration-150
                     hover:bg-white/[0.06] focus-visible:bg-white/[0.06]
                     focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/10">
-            <p class="text-sm font-semibold text-white/85">${head}</p>
-            <p class="mt-1 text-[11px] text-white/45 break-all">${url}</p>
+            <p class="text-sm font-semibold text-white/85">${url}</p>
             ${
-                    desc
+                    description
                         ? `<div class="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs leading-relaxed text-white/70">
-                     ${desc}
+                     ${description}
                    </div>`
                         : ""
                 }

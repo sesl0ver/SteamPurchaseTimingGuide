@@ -95,6 +95,9 @@ final class DealController
         // 4) build deal
         $deal = $this->buildSubDealPayload($steamSub, $overview, $historyLow);
 
+        // ✅ 응답 축소: deal 계산에만 사용한 내부 필드는 제거
+        // NOTE: steam.sub.price는 클라이언트 fallback(ITAD current 없음) 및 디버그를 위해 유지합니다.
+
         $result = [
             'steam' => [
                 'sub' => $steamSub,
@@ -104,8 +107,6 @@ final class DealController
                 'kind' => 'sub',
                 'id' => (string)$subId,
                 'steam_url' => "https://store.steampowered.com/sub/{$subId}/",
-                'title' => (string)($steamSub['title'] ?? ''),
-                'country' => $country,
                 'generated_at' => gmdate('c'),
             ],
         ];
@@ -159,6 +160,9 @@ final class DealController
         // 4) build deal
         $deal = $this->buildBundleDealPayload($steamBundle, $overview, $historyLow);
 
+        // ✅ 응답 축소: deal 계산에만 사용한 내부 필드는 제거
+        // NOTE: steam.bundle.price는 클라이언트 fallback(ITAD current 없음) 및 디버그를 위해 유지합니다.
+
         $result = [
             'steam' => [
                 'bundle' => $steamBundle,
@@ -168,8 +172,6 @@ final class DealController
                 'kind' => 'bundle',
                 'id' => (string)$bundleId,
                 'steam_url' => "https://store.steampowered.com/bundle/{$bundleId}/",
-                'title' => (string)($steamBundle['title'] ?? ''),
-                'country' => $country,
                 'generated_at' => gmdate('c'),
             ],
         ];
@@ -232,14 +234,8 @@ final class DealController
             'title' => (string)($steamPack['name'] ?? '패키지 상품'),
             'header_image' => $steamPack['header_image'] ?? null,
             'page_image' => $steamPack['page_image'] ?? null,
-            'small_logo' => $steamPack['small_logo'] ?? null,
-            'apps' => array_values(array_map(
-                static fn(array $app) => [
-                    'id' => (int)($app['id'] ?? 0),
-                    'name' => (string)($app['name'] ?? ''),
-                ],
-                is_array($steamPack['apps'] ?? null) ? $steamPack['apps'] : []
-            )),
+            // 앱(app) 대비 호환성을 위해 남겨두되, sub는 기본 0(미지원)으로 취급
+            'supported_languages' => 0,
             'price' => ($regular !== null && $final !== null) ? [
                 'currency' => $currency,
                 'regular' => $regular,
@@ -305,12 +301,10 @@ final class DealController
             'title' => (string)($bundle['name'] ?? '번들 상품'),
             'header_image' => $bundle['header_image_url'] ?? null,
             'page_image' => $bundle['main_capsule'] ?? null,
-            'small_logo' => $bundle['library_asset'] ?? null,
+            // 앱(app) 대비 호환성을 위해 남겨두되, bundle은 기본 0(미지원)으로 취급
+            'supported_languages' => 0,
 
-            // 구성(IDs만)
-            'appids' => array_values(array_map('intval', is_array($bundle['appids'] ?? null) ? $bundle['appids'] : [])),
-            'packageids' => array_values(array_map('intval', is_array($bundle['packageids'] ?? null) ? $bundle['packageids'] : [])),
-
+            // deal fallback 계산용으로만 사용 (응답 직전에 제거)
             'price' => ($regular !== null && $final !== null) ? [
                 'currency' => 'KRW',
                 'regular' => $regular,
@@ -318,9 +312,9 @@ final class DealController
                 'discount_percent' => $dp,
             ] : null,
 
-            // 덱 카테고리(원하면 나중에 표시)
-            'deck_compatibility_category' => $bundle['deck_compatibility_category'] ?? null,
-            'release_date' => '', // bundle은 날짜가 애매해서 비움
+            // bundle은 날짜가 애매해서 비움
+            'release_date' => '',
+
         ];
     }
 

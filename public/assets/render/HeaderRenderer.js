@@ -40,6 +40,8 @@ export class HeaderRenderer {
                 ? `<span class="ml-2 inline-flex items-center rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[11px] font-medium text-white/80">유저 한글패치</span>`
                 : "";
 
+        const release_text = (/\d/.test(releaseDate)) ? ' 출시' : '';
+
         this.gameHeaderEl.innerHTML = `
       <a href="${link}" target="_blank" rel="noopener"
          class="group block overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.05] transition">
@@ -55,7 +57,7 @@ export class HeaderRenderer {
               ${
             releaseDate
                 ? `<div class="absolute left-3 bottom-3 rounded-xl bg-black/50 px-3 py-1 text-xs text-white">
-                       📅 ${escapeHtml(releaseDate)} 출시
+                       📅 ${escapeHtml(releaseDate)}${release_text}
                      </div>`
                 : ""
         }
