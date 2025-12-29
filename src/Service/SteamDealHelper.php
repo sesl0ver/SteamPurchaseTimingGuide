@@ -33,7 +33,7 @@ final class SteamDealHelper
         if (!is_array($dlc) || !($dlc['success'] ?? false)) {
             $dlc = [
                 'success' => false,
-                'appid' => (string)$steamAppId,
+                'appid' => $steamAppId,
                 'name' => (string)($appData['name'] ?? ''),
                 'count' => 0,
                 'priced_count' => 0,
@@ -148,6 +148,7 @@ final class SteamDealHelper
             'title' => $appData['name'] ?? null,
             'header_image' => $appData['header_image'] ?? null,
             'supported_languages' => $appData['supported_languages'] ?? 0,
+            'genres' => $appData['genres'] ? array_column($appData['genres'], 'description') : [],
 
             // 가격(데이터만)
             'price' => [

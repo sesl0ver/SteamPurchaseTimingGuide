@@ -7,6 +7,7 @@
     "ext-pdo": "*",
     "ext-redis": "*",
     "guzzlehttp/guzzle": "^7.10",
+    "matthiasmullie/minify": "^1.3",
     "php-di/php-di": "^7.1",
     "slim/psr7": "^1.8",
     "slim/slim": "^4.14",
