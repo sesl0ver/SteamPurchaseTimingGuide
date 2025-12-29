@@ -10,6 +10,7 @@ import { ModalKoreanPatch } from "./ui/ModalKoreanPatch.js";
 import { HeaderRenderer } from "./render/HeaderRenderer.js";
 import { CardsRenderer } from "./render/CardsRenderer.js";
 import { NarrativeRenderer } from "./render/NarrativeRenderer.js";
+import { TrendingRenderer } from "./render/TrendingRenderer.js";
 
 (() => {
     const appIdInput = $("#appId");
@@ -17,9 +18,10 @@ import { NarrativeRenderer } from "./render/NarrativeRenderer.js";
     const resultArea = $("#resultArea");
     const gameHeader = $("#gameHeader");
     const resultCards = $("#resultCards");
+    const trendingSection = $("#trendingSection");
+    const trendingList = $("#trendingList");
 
     if (!appIdInput || !fetchBtn || !resultArea || !gameHeader || !resultCards) {
-        console.warn("[app.js] Required DOM elements not found.");
         return;
     }
 
@@ -93,4 +95,48 @@ import { NarrativeRenderer } from "./render/NarrativeRenderer.js";
             runFetch();
         }
     });
+
+    // 트랜딩 목록
+    const trending = (trendingSection && trendingList)
+        ? new TrendingRenderer({
+            sectionEl: trendingSection,
+            listEl: trendingList,
+            api,
+            days: 7,
+            limit: 10,
+            intervalMs: 120_000, // 2분 (원하면 180_000)
+        })
+        : null;
+
+    // 페이지 로드 시 바로 시작 (결과가 없어도 hidden 유지)
+    trending?.start();
+
+    // ===== Trending 카드 클릭 → 내부 조회 =====
+    document.addEventListener("click", (e) => {
+        const card = e.target.closest("[data-kind][data-id]");
+        if (!card) return;
+
+        // 트렌딩 카드가 아닌 다른 카드 클릭은 무시
+        if (!card.closest("#trendingSection")) return;
+
+        e.preventDefault();
+
+        const kind = card.dataset.kind;
+        const id = card.dataset.id;
+
+        if (!kind || !id) return;
+
+        // 입력창에 값 주입 (parseSteamInput이 이해할 수 있는 형태)
+        // 가장 단순한 건 숫자 ID
+        appIdInput.value = id;
+
+        // 바로 조회 실행
+        runFetch();
+    });
+
+    // 페이지 종료 시 정리
+    window.addEventListener("beforeunload", () => trending?.stop());
+
 })();
+
+

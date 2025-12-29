@@ -12,4 +12,15 @@ export class DealApi {
         }
         return json.data;
     }
+
+    async fetchTrending(days = 7, limit = 10, opts = {}) {
+        const url = `/api/trending?days=${encodeURIComponent(days)}&limit=${encodeURIComponent(limit)}`;
+        const res = await fetch(url, { headers: { "Accept": "application/json" }, signal: opts.signal });
+        const json = await res.json().catch(() => null);
+
+        if (!res.ok || !json?.success) {
+            throw new Error(json?.message || "Trending API 응답이 올바르지 않습니다.");
+        }
+        return json.data;
+    }
 }

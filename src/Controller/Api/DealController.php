@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 
 use App\Service\ItadClient;
 use App\Service\SteamDealHelper;
+use App\Service\LookupTrendTracker;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Http\Message\ResponseInterface;
@@ -15,9 +16,8 @@ final class DealController
     public function __construct(
         private readonly SteamDealHelper $dealHelper,
         private readonly ItadClient $itadClient,
-
-        // packagedetails / ajaxresolvebundles 등을 컨트롤러에서 직접 호출
         private readonly ClientInterface $http,
+        private readonly LookupTrendTracker $trendTracker,
     ) {}
 
     /**
@@ -49,6 +49,15 @@ final class DealController
                 'message' => '게임 정보를 불러올 수 없습니다.',
             ], 404);
         }
+
+        // ✅ 조회 성공 시점에서만 Redis 기록 (요구사항 그대로)
+        $kind = (string)($result['meta']['kind'] ?? '');
+        $id = (string)($result['meta']['id'] ?? '');
+        $steamUrl = (string)($result['meta']['steam_url'] ?? '');
+        $title = (string)($result['steam']['app']['title'] ?? '');
+        $headerImage = (string)($result['steam']['app']['header_image'] ?? '');
+
+        $this->trendTracker->record($kind, $id, $title, $headerImage, $steamUrl);
 
         return $this->json($response, [
             'success' => true,
@@ -110,6 +119,14 @@ final class DealController
                 'generated_at' => gmdate('c'),
             ],
         ];
+
+        $kind = (string)($result['meta']['kind'] ?? 'sub');
+        $id = (string)($result['meta']['id'] ?? $subId);
+        $steamUrl = (string)($result['meta']['steam_url'] ?? "https://store.steampowered.com/sub/{$subId}/");
+        $title = (string)($steamSub['title'] ?? '');
+        $headerImage = (string)($steamSub['header_image'] ?? '');
+
+        $this->trendTracker->record($kind, $id, $title, $headerImage, $steamUrl);
 
         return $this->json($response, [
             'success' => true,
@@ -175,6 +192,14 @@ final class DealController
                 'generated_at' => gmdate('c'),
             ],
         ];
+
+        $kind = (string)($result['meta']['kind'] ?? 'bundle');
+        $id = (string)($result['meta']['id'] ?? $bundleId);
+        $steamUrl = (string)($result['meta']['steam_url'] ?? "https://store.steampowered.com/bundle/{$bundleId}/");
+        $title = (string)($steamBundle['title'] ?? '');
+        $headerImage = (string)($steamBundle['header_image'] ?? '');
+
+        $this->trendTracker->record($kind, $id, $title, $headerImage, $steamUrl);
 
         return $this->json($response, [
             'success' => true,

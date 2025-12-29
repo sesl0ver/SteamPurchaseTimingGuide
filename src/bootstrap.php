@@ -3,6 +3,7 @@
 use App\Controller\PageController;
 use App\Controller\AuthController;
 use App\Controller\Api\DealController;
+use App\Controller\Api\TrendingController;
 use App\Middleware\ApiJsonResponseMiddleware;
 use App\Middleware\ValidateJsonBodyMiddleware;
 
@@ -22,4 +23,5 @@ $app->group('/api', function ($group) {
     $group->get('/deal/{steam_appid}', [DealController::class, 'fetchApp']); // 스팀 기본 앱
     $group->get('/deal/sub/{sub_id}', [DealController::class, 'fetchSub']); // 스팀 패키지
     $group->get('/deal/bundle/{bundle_id}', [DealController::class, 'fetchBundle']); // 스팀 패키지
+    $group->get('/trending', [TrendingController::class, 'list']); // 최근 조회 상위
 })->add(new ApiJsonResponseMiddleware());

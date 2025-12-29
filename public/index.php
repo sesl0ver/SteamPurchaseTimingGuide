@@ -19,6 +19,7 @@ use App\Service\SteamDealHelper;
 use App\Service\ItadClient;
 use App\Repository\CommunityKoreanPatchRepository;
 use App\Service\CommunityKoreanPatchParser;
+use App\Service\LookupTrendTracker;
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
 
@@ -73,6 +74,9 @@ $container->set(RedisCache::class, function ($c) {
     return new RedisCache($c->get(\Redis::class));
 });
 
+$container->set(LookupTrendTracker::class, function ($c) {
+    return new LookupTrendTracker($c->get(\Redis::class));
+});
 
 $container->set(SteamWebApiClient::class, function () {
     $key = (string)($_ENV['STEAM_WEB_API_KEY'] ?? '');
@@ -124,6 +128,7 @@ $container->set(DealController::class, function ($c) {
         $c->get(SteamDealHelper::class),
         $c->get(ItadClient::class),
         $c->get(ClientInterface::class),
+        $c->get(LookupTrendTracker::class),
     );
 });
 

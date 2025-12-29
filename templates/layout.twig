@@ -59,6 +59,62 @@
         .loading-wave:nth-child(13) { animation-delay: .6s; }
         .loading-wave:nth-child(14) { animation-delay: .65s; }
         .loading-wave:nth-child(15) { animation-delay: .7s; }
+
+        /* 스크롤바 숨김 (모든 브라우저 대응) */
+        .scrollbar-hidden {
+            -ms-overflow-style: none; /* IE, Edge */
+            scrollbar-width: none;    /* Firefox */
+        }
+        .scrollbar-hidden::-webkit-scrollbar {
+            display: none;            /* Chrome, Safari */
+        }
+
+        .trend-arrow {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 56px;
+            z-index: 10;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-size: 28px;
+            font-weight: 600;
+
+            color: rgba(255,255,255,0.6);
+            background: linear-gradient(
+                    to right,
+                    rgba(10,10,15,0.65),
+                    rgba(10,10,15,0)
+            );
+
+            cursor: pointer;
+            transition: all .2s ease;
+            opacity: 0;
+            pointer-events: auto;
+        }
+
+        .trend-arrow.right-0 {
+            background: linear-gradient(
+                    to left,
+                    rgba(10,10,15,0.80),
+                    rgba(10,10,15,0)
+            );
+        }
+
+        .trend-arrow:hover {
+            color: rgba(0,200,0,0.9);
+        }
+        #trendingWrap .trend-arrow {
+            opacity: 0;
+        }
+        #trendingWrap:hover .trend-arrow {
+            opacity: 1;
+        }
+        #trendingWrap { position: relative; }
+        #trendingScroller { position: relative; }
     </style>
 </head>
 
