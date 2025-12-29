@@ -434,6 +434,13 @@ export class NarrativeRenderer {
             } else {
                 push("caution", 85, `공식 ${strong("한국어 미지원")}으로 인해 언어 부담이 생길 수 있습니다.`, "lang:no_ko");
             }
+        } else {
+            push(
+                "info",
+                30,
+                `묶음 상품은 구성 게임별로 ${strong("한국어 지원 여부")}가 다를 수 있어, 각 게임의 Steam 상점 페이지에서 언어 정보를 확인해 주세요.`,
+                "lang:bundle_unknown"
+            );
         }
 
         // ---------------- (4) 장르 ----------------

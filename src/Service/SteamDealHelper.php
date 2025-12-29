@@ -7,6 +7,11 @@ use App\Repository\CommunityKoreanPatchRepository;
 
 final class SteamDealHelper
 {
+    // 일부 게임ID가 아닌 다르ID에 가격정보가 붙어있는 경우를 위한 우회 경로
+    private const array ITAD_PRICE_TARGET_OVERRIDES = [
+        3101040 => ['type' => 'sub', 'id' => 1101478], // Magical Girl Witch Trials (魔法少女ノ魔女裁判)
+    ];
+
     public function __construct(
         private readonly SteamClient $steamClient,
         private readonly ItadClient  $itadClient,
@@ -49,8 +54,16 @@ final class SteamDealHelper
             $reviews = null;
         }
 
-        // 기존: overview 기반
-        $itad = $this->itadClient->getOverviewBySteamAppId($steamAppId, $country);
+        // 특정 ID는 다른 ID에 가격 정보가 연결되어있어 우회시도
+        if (array_key_exists($steamAppId, self::ITAD_PRICE_TARGET_OVERRIDES)) {
+            $overrideSubId = self::ITAD_PRICE_TARGET_OVERRIDES[$steamAppId]['id'];
+            // $overrideType = self::ITAD_PRICE_TARGET_OVERRIDES[$steamAppId]['type']; TODO 차후 다른 타입이랑 연결된 경우가 있을 수 있으므로 살려둠.
+            $itad = $this->itadClient->getDealBySteamSubId((string)$overrideSubId, $country);
+            $deal = $this->buildDealDataFromOverview($itad);
+        } else {
+            $itad = $this->itadClient->getOverviewBySteamAppId($steamAppId, $country);
+            $deal = $this->buildDealDataFromOverview($itad);
+        }
 
         // ✅ 커뮤니티 한글패치(DB) 조회 + 파싱
         $patchRow = $this->communityPatchRepo->findByAppId((int)$steamAppId);
@@ -66,7 +79,7 @@ final class SteamDealHelper
                     'community_patch' => $communityPatch,
                 ],
             ],
-            'deal' => $this->buildDealDataFromOverview($itad),
+            'deal' => $deal,
             'meta' => [
                 'kind'        => 'app',
                 'id'          => $steamAppId,
