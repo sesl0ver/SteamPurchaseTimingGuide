@@ -12,6 +12,10 @@ use App\Middleware\AppIdCooldownMiddleware;
 
 // Web(HTML)
 $app->get('/', PageController::class . ':home');
+$app->get('/app/{id:[0-9]+}', PageController::class . ':home');
+$app->get('/sub/{id:[0-9]+}', PageController::class . ':home');
+$app->get('/bundle/{id:[0-9]+}', PageController::class . ':home');
+
 $app->get('/login', PageController::class . ':login');
 
 $adminToken = (string)($_ENV['ADMIN_TOKEN'] ?? '');

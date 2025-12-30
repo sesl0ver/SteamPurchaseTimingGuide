@@ -41,6 +41,20 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
         narrative,
     });
 
+    // ===== 딥링크 파싱 =====
+    function parseDeepLinkPath() {
+        const m = window.location.pathname.match(/^\/(app|sub|bundle)\/(\d+)$/);
+        if (!m) return null;
+        return { kind: m[1], id: m[2] };
+    }
+
+    // ===== URL 정리(쿼리 제거) =====
+    function cleanupUrlToRoot() {
+        // 이미 "/"면 불필요 호출 방지
+        if (window.location.pathname === "/" && window.location.search === "") return;
+        history.replaceState({}, "", "/");
+    }
+
     function renderError(msg) {
         portal.close();
         dlcModal.close();
@@ -57,9 +71,31 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
     `;
     }
 
-    async function runFetch() {
-        const input = appIdInput.value.trim();
-        const parsed = parseSteamInput(input);
+    function syncUrlToDeal(kind, id) {
+        const target = `/${kind}/${id}`;
+
+        // 이미 같은 경로면 불필요 변경 X
+        if (window.location.pathname === target) return;
+
+        // 쿼리 제거 포함해서 주소를 딥링크로 동기화
+        history.replaceState({}, "", target);
+    }
+
+
+    // ===== 조회 실행 =====
+    // source 옵션:
+    // - "user": 사용자가 입력/버튼/엔터로 실행
+    // - "trending": 트렌딩 카드 클릭으로 실행
+    // - "deeplink": 쿼리(kind,id)로 자동 실행
+    async function runFetch({ source = "user", kindOverride = null, idOverride = null } = {}) {
+        let parsed;
+
+        if (kindOverride && idOverride) {
+            parsed = { kind: kindOverride, id: String(idOverride) };
+        } else {
+            const input = appIdInput.value.trim();
+            parsed = parseSteamInput(input);
+        }
 
         if (!parsed) {
             renderError("Steam 스토어 주소(/app/… /sub/… /bundle/…)나 ID를 입력해 주세요.");
@@ -73,13 +109,20 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
             const kind = data?.meta?.kind || parsed.kind;
             const id = data?.meta?.id || parsed.id;
 
-            const steamItem = kind === "sub" ? data?.steam?.sub : kind === "bundle" ? data?.steam?.bundle : data?.steam?.app;
+            const steamItem =
+                kind === "sub" ? data?.steam?.sub :
+                    kind === "bundle" ? data?.steam?.bundle :
+                        data?.steam?.app;
+
             if (!steamItem) throw new Error("Steam 데이터 형식이 올바르지 않습니다.");
 
             const flags = cardsRenderer.render(data);
             headerRenderer.render({ kind, id, steam_url: data?.meta?.steam_url }, steamItem, flags);
 
             resultArea.scrollIntoView({ behavior: "smooth" });
+
+            // 성공 후 URL 정리: 딥링크 경로에서 "다른 ID"를 조회했을 때만 / 로 변경
+            syncUrlToDeal(kind, id);
         } catch (e) {
             console.error(e);
             renderError(e?.message || "요청 중 오류가 발생했습니다.");
@@ -88,11 +131,11 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
         }
     }
 
-    fetchBtn.addEventListener("click", runFetch);
+    fetchBtn.addEventListener("click", () => runFetch({ source: "user" }));
     appIdInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
             e.preventDefault();
-            runFetch();
+            runFetch({ source: "user" });
         }
     });
 
@@ -127,12 +170,24 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
         if (!kind || !id) return;
 
         // 입력창에 값 주입 (parseSteamInput이 이해할 수 있는 형태)
-        // 가장 단순한 건 숫자 ID
-        appIdInput.value = id;
+        // kind가 sub/bundle이면 URL 형태로 넣어주면 parseSteamInput이 확실히 이해합니다.
+        if (kind === "sub") appIdInput.value = `https://store.steampowered.com/sub/${id}`;
+        else if (kind === "bundle") appIdInput.value = `https://store.steampowered.com/bundle/${id}`;
+        else appIdInput.value = id;
 
         // 바로 조회 실행
-        runFetch();
+        runFetch({ source: "trending" });
     });
+
+    // ===== 딥링크 자동 조회 =====
+    const deep = parseDeepLinkPath();
+    if (deep) {
+        if (deep.kind === "sub") appIdInput.value = `https://store.steampowered.com/sub/${deep.id}`;
+        else if (deep.kind === "bundle") appIdInput.value = `https://store.steampowered.com/bundle/${deep.id}`;
+        else appIdInput.value = deep.id;
+
+        runFetch({ source: "deeplink", kindOverride: deep.kind, idOverride: deep.id });
+    }
 
     // 페이지 종료 시 정리
     window.addEventListener("beforeunload", () => trending?.stop());
@@ -141,5 +196,3 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
         fetch("/api/ping", { method: "POST" }).catch(() => {});
     }, 60_000);
 })();
-
-
