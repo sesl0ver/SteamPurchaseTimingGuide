@@ -601,6 +601,24 @@ export class NarrativeRenderer {
             }
         }
 
+        // ---------------- (7.5) 도전과제(참고 정보) ----------------
+        // data.steam.app.achievement_count 기준 (총 도전과제 수)
+        if (kind === "app") {
+            const ac = steamItem?.achievement_count;
+
+            if (typeof ac === "number") {
+                if (ac > 0) {
+                    push("info", 32, `도전과제가 ${strong(`${number_format(ac)}개`)} 존재합니다.`, "meta:achievements");
+                } else {
+                    // 0은 사실상 "미지원" 케이스로 처리
+                    push("info", 24, `도전과제를 지원하지 않습니다.`, "meta:achievements_none");
+                }
+            } else {
+                // 값이 없으면(미지원/미제공)도 “참고 정보”로는 무해하니 단정 없이 안내
+                push("info", 22, `도전과제 정보가 확인되지 않습니다.`, "meta:achievements_unknown");
+            }
+        }
+
         // ---------------- (8) 할인 종료 임박 ----------------
         const expiry = deal?.current?.expiry_at;
         if (expiry) {

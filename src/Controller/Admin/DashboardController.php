@@ -23,6 +23,12 @@ final class DashboardController
             'trending' => $this->stats->getTrending(7, 10),
             'events' => $this->stats->getEvents(3),
             'retention_d1' => $this->stats->getRetention(1),
+
+            // 추가
+            'dau_delta' => $this->stats->getDauDelta(),
+            'ccu_delta' => $this->stats->getCcuDelta(),
+            'trending_focus' => $this->stats->getTrendingFocus(7, 3),
+            'new_vs_return' => $this->stats->getTodayNewVsReturning(),
         ]);
     }
 }

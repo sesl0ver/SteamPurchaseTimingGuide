@@ -170,6 +170,9 @@ final class SteamDealHelper
                 'discount_percent' => $appData['price']['discount_percent'] ?? null,
             ],
 
+            // 도전과제
+            'achievement_count' => $appData['achievements']['total'] ?? 0,
+
             // ✅ 기존 렌더링 유지용: 구매 가능 판정 신호/디버그
             // (클라이언트가 packages / package_groups 원본을 받지 않아도 동일 로직으로 판정 가능)
             'purchasable_signals' => [

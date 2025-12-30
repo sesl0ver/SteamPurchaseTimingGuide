@@ -133,7 +133,7 @@ final class SteamClient
                 'appids'  => $appId,
                 'l'       => 'koreana',
                 'cc'      => strtolower($country),
-                'filters' => 'basic,genres,price_overview,release_date,packages,package_groups,supported_languages'
+                'filters' => 'basic,genres,price_overview,release_date,packages,package_groups,supported_languages,achievements'
             ]);
 
             $result = $this->requestJson('GET', $this->steamBaseUrl . '/api/appdetails?' . $queryString);
@@ -174,6 +174,7 @@ final class SteamClient
                 'name' => (string)($data['name'] ?? ''),
                 'header_image' => (string)($data['header_image'] ?? ''),
                 'genres' => $data['genres'] ?? null,
+                'achievements' => $data['achievements'] ?? null,
                 'supported_languages' => $supported_languages,
                 'price' => [
                     'regular_price'    => $po !== null ? (int)($po['initial'] / 100) : 0,

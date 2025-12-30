@@ -23,6 +23,31 @@
 </section>
 
 <section>
+    <h2 class="font-semibold mb-2">오늘 요약</h2>
+    <div class="grid grid-cols-2 gap-4 text-sm">
+        <div class="bg-gray-800 rounded p-3">
+            <div class="text-gray-400">DAU</div>
+            <div class="text-xl font-bold">
+                {{ dau_delta.today }}
+                <span class="{{ dau_delta.delta >= 0 ? 'text-green-400' : 'text-red-400' }}">
+          ({{ dau_delta.delta >= 0 ? '+' : '' }}{{ dau_delta.delta }})
+        </span>
+            </div>
+        </div>
+
+        <div class="bg-gray-800 rounded p-3">
+            <div class="text-gray-400">CCU</div>
+            <div class="text-xl font-bold">
+                {{ ccu_delta.current }}
+                <span class="{{ ccu_delta.delta >= 0 ? 'text-green-400' : 'text-red-400' }}">
+          ({{ ccu_delta.delta >= 0 ? '+' : '' }}{{ ccu_delta.delta }})
+        </span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section>
     <h2 class="font-semibold mb-2">CCU (최근 5분)</h2>
     <div class="text-3xl font-bold">{{ ccu }}</div>
 </section>
@@ -49,6 +74,21 @@
 </section>
 
 <section>
+    <h2 class="font-semibold mb-2">트렌딩 집중도 (Top 3)</h2>
+    <ul class="text-sm space-y-1">
+        {% for item in trending_focus %}
+            <li>
+                #{{ item.rank }} {{ item.title ?? '(unknown)' }}
+                <span class="text-gray-400">— {{ item.ratio }}%</span>
+            </li>
+        {% else %}
+            <li class="text-gray-500">데이터 없음</li>
+        {% endfor %}
+    </ul>
+</section>
+
+
+<section>
     <h2 class="font-semibold mb-2">Events (최근 3일)</h2>
     {% for day, events in events %}
         <div class="mb-2">
@@ -62,6 +102,15 @@
             </ul>
         </div>
     {% endfor %}
+</section>
+
+<section>
+    <h2 class="font-semibold mb-2">오늘 방문 구성</h2>
+    <div class="text-sm">
+        총 {{ new_vs_return.total }}명 중
+        <span class="text-green-400">신규 {{ new_vs_return.new }}</span>,
+        <span class="text-blue-400">재방문 {{ new_vs_return.returning }}</span>
+    </div>
 </section>
 
 <section>
