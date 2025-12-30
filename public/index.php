@@ -49,8 +49,12 @@ $container->set(ClientInterface::class, function () {
 
 // Twig 등록 (DI로 주입해서 사용)
 $container->set(Twig::class, function (): Twig {
+    $appEnv = strtolower((string)($_ENV['APP_ENV'] ?? 'dev'));
+    $appDebug = in_array(strtolower((string)($_ENV['APP_DEBUG'] ?? 'true')), ['1','true','yes','on'], true);
+    $isProd = ($appEnv === 'prod') && !$appDebug;
     return Twig::create(dirname(__DIR__) . '/templates', [
-        'cache' => false, // 운영에서는 캐시 경로 권장
+        'cache' => $isProd ? __DIR__ . '/../var/cache/twig' : false,
+        'auto_reload' => !$isProd,
     ]);
 });
 
