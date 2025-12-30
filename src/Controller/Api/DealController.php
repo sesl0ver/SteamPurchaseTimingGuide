@@ -6,6 +6,7 @@ namespace App\Controller\Api;
 use App\Service\ItadClient;
 use App\Service\SteamDealHelper;
 use App\Service\LookupTrendTracker;
+use App\Service\Fingerprint;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Http\Message\ResponseInterface;
@@ -57,7 +58,18 @@ final class DealController
         $title = (string)($result['steam']['app']['title'] ?? '');
         $headerImage = (string)($result['steam']['app']['header_image'] ?? '');
 
-        $this->trendTracker->record($kind, $id, $title, $headerImage, $steamUrl);
+        // Log
+        $fp = Fingerprint::fromRequest($request);
+
+        $this->trendTracker->record(
+            $fp,
+            $kind,
+            (string)$id,
+            $title,
+            $headerImage,
+            $steamUrl
+        );
+
 
         return $this->json($response, [
             'success' => true,
@@ -126,7 +138,17 @@ final class DealController
         $title = (string)($steamSub['title'] ?? '');
         $headerImage = (string)($steamSub['header_image'] ?? '');
 
-        $this->trendTracker->record($kind, $id, $title, $headerImage, $steamUrl);
+        // Log
+        $fp = Fingerprint::fromRequest($request);
+
+        $this->trendTracker->record(
+            $fp,
+            $kind,
+            (string)$id,
+            $title,
+            $headerImage,
+            $steamUrl
+        );
 
         return $this->json($response, [
             'success' => true,
@@ -199,7 +221,17 @@ final class DealController
         $title = (string)($steamBundle['title'] ?? '');
         $headerImage = (string)($steamBundle['header_image'] ?? '');
 
-        $this->trendTracker->record($kind, $id, $title, $headerImage, $steamUrl);
+        // Log
+        $fp = Fingerprint::fromRequest($request);
+
+        $this->trendTracker->record(
+            $fp,
+            $kind,
+            (string)$id,
+            $title,
+            $headerImage,
+            $steamUrl
+        );
 
         return $this->json($response, [
             'success' => true,

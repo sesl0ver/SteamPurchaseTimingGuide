@@ -137,6 +137,9 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
     // 페이지 종료 시 정리
     window.addEventListener("beforeunload", () => trending?.stop());
 
+    setInterval(() => {
+        fetch("/api/ping", { method: "POST" }).catch(() => {});
+    }, 60_000);
 })();
 
 

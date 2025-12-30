@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="refresh" content="60">
+    <title>Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 p-6 space-y-6">
+
+<h1 class="text-2xl font-bold">📊 Admin Dashboard</h1>
+
+<section>
+    <h2 class="font-semibold mb-2">DAU (최근 7일)</h2>
+    <div class="grid grid-cols-7 gap-2 text-sm">
+        {% for day, count in dau %}
+            <div class="bg-gray-800 rounded p-2 text-center">
+                <div class="text-xs text-gray-400">{{ day }}</div>
+                <div class="text-lg font-semibold">{{ count }}</div>
+            </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section>
+    <h2 class="font-semibold mb-2">CCU (최근 5분)</h2>
+    <div class="text-3xl font-bold">{{ ccu }}</div>
+</section>
+
+<section>
+    <h2 class="font-semibold mb-2">Trending (7일)</h2>
+    <table class="w-full text-sm">
+        <thead>
+        <tr class="text-left text-gray-400">
+            <th>#</th><th>제목</th><th>Kind</th><th>조회수</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in trending %}
+            <tr class="border-t border-gray-800">
+                <td>{{ loop.index }}</td>
+                <td>{{ item.title ?? '(unknown)' }}</td>
+                <td>{{ item.kind }}</td>
+                <td>{{ item.count }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section>
+    <h2 class="font-semibold mb-2">Events (최근 3일)</h2>
+    {% for day, events in events %}
+        <div class="mb-2">
+            <div class="text-xs text-gray-400">{{ day }}</div>
+            <ul class="text-sm">
+                {% for name, cnt in events %}
+                    <li>{{ name }}: {{ cnt }}</li>
+                {% else %}
+                    <li class="text-gray-500">이벤트 없음</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endfor %}
+</section>
+
+<section>
+    <h2 class="font-semibold mb-2">D1 Retention</h2>
+    <p>
+        Cohort {{ retention_d1.cohort_day }} →
+        {{ retention_d1.returned }} / {{ retention_d1.cohort_size }}
+        ({{ retention_d1.rate }}%)
+    </p>
+</section>
+
+</body>
+</html>

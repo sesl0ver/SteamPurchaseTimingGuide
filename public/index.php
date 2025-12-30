@@ -12,6 +12,7 @@ use App\Infrastructure\Database\PdoFactory;
 use App\Infrastructure\Cache\RedisFactory;
 use App\Infrastructure\Cache\RedisCache;
 use App\Controller\Api\DealController;
+use App\Controller\Api\PingController;
 use App\Steam\SteamWebApiClient;
 use App\Steam\SteamService;
 use App\Service\SteamClient;
@@ -20,6 +21,9 @@ use App\Service\ItadClient;
 use App\Repository\CommunityKoreanPatchRepository;
 use App\Service\CommunityKoreanPatchParser;
 use App\Service\LookupTrendTracker;
+use App\Service\AbuseGuard;
+use App\Service\StatsTracker;
+use App\Middleware\AdminGuardMiddleware;
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
 
@@ -75,7 +79,11 @@ $container->set(RedisCache::class, function ($c) {
 });
 
 $container->set(LookupTrendTracker::class, function ($c) {
-    return new LookupTrendTracker($c->get(\Redis::class));
+    return new LookupTrendTracker(
+        $c->get(Redis::class),
+        $c->get(AbuseGuard::class),
+        $c->get(StatsTracker::class),
+    );
 });
 
 $container->set(SteamWebApiClient::class, function () {
@@ -129,6 +137,20 @@ $container->set(DealController::class, function ($c) {
         $c->get(ItadClient::class),
         $c->get(ClientInterface::class),
         $c->get(LookupTrendTracker::class),
+    );
+});
+
+$container->set(App\Service\AbuseGuard::class,
+    fn($c) => new App\Service\AbuseGuard($c->get(Redis::class))
+);
+
+$container->set(App\Service\StatsTracker::class,
+    fn($c) => new App\Service\StatsTracker($c->get(Redis::class))
+);
+
+$container->set(PingController::class, function ($c) {
+    return new PingController(
+        $c->get(Redis::class)
     );
 });
 
