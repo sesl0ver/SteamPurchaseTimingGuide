@@ -30,32 +30,49 @@ class ErrorHandler implements ErrorHandlerInterface
         if ($isApi) {
             if ($exception instanceof ValidationException) {
                 $details = $exception->getErrors();
-                if ($displayErrorDetails) {
+                /*if ($displayErrorDetails) {
                     $details[] = ['field' => '$trace', 'reason' => $exception->getTraceAsString()];
-                }
+                }*/
 
                 return ApiResponse::errorWithDetails(
                     new Response(),
                     $exception->getMessage(),
-                    $exception->getCode(),
+                    1200, // $exception->getCode()
                     $exception->getHttpStatus(),
                     $details
                 );
             }
 
-            $status = ($exception instanceof HttpException) ? ($exception->getCode() ?: 500) : 500;
+            $code = ($exception instanceof HttpException) ? (int)$exception->getCode() : 0;
+            $status = ($code >= 400 && $code < 600) ? $code : 500;
             $message = $displayErrorDetails ? $exception->getMessage() : 'Internal Server Error';
 
-            $details = $displayErrorDetails
+            $details = [];
+            /*$details = $displayErrorDetails
                 ? [['field' => '$trace', 'reason' => $exception->getTraceAsString()]]
-                : [];
+                : [];*/
 
-            return ApiResponse::errorWithDetails(new Response(), $message, 1001, $status, $details);
+            $errorCode = 1001;
+
+            if ($exception instanceof HttpException) {
+                $errorCode = match ($status) {
+                    404 => 1404,
+                    405 => 1405,
+                    default => 1400,
+                };
+            }
+
+            return ApiResponse::errorWithDetails(new Response(), $message, $errorCode, $status, $details);
         }
 
         // WEB(HTML)
-        $status = ($exception instanceof HttpException) ? ($exception->getCode() ?: 500) : 500;
-        $message = $displayErrorDetails ? $exception->getMessage() : '문제가 발생했습니다.';
+        $code = ($exception instanceof HttpException) ? (int)$exception->getCode() : 0;
+        $status = ($code >= 400 && $code < 600) ? $code : 500;
+        $message = $displayErrorDetails ? $exception->getMessage() : match ($status) {
+            404 => '페이지를 찾을 수 없습니다.',
+            405 => '허용되지 않은 요청입니다.',
+            default => '문제가 발생했습니다.',
+        };
 
         $response = new Response($status);
         return $this->view->render($response, 'error.twig', [

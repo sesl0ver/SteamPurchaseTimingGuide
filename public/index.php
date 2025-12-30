@@ -165,7 +165,17 @@ $app->addBodyParsingMiddleware();
 $app->addRoutingMiddleware();
 
 // 에러 미들웨어 + 커스텀 핸들러
-$errorMiddleware = $app->addErrorMiddleware(true, true, true);
+// 환경 플래그 (없으면 dev 기본)
+// prod에서는 상세 에러 숨김
+$displayErrorDetails = (strtolower((string)($_ENV['APP_ENV'] ?? 'dev')) !== 'prod') &&
+    in_array(strtolower((string)($_ENV['APP_DEBUG'] ?? 'true')), ['1','true','yes','on'], true);
+
+// 에러 미들웨어 + 커스텀 핸들러
+$errorMiddleware = $app->addErrorMiddleware(
+    $displayErrorDetails,
+    true,   // logErrors
+    true    // logErrorDetails
+);
 $errorMiddleware->setDefaultErrorHandler(ErrorHandler::class);
 
 // 부트스트랩(세션 시작 등)
