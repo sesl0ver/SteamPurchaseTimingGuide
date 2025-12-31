@@ -17,7 +17,7 @@ final class AdminStatsService
     {
         $out = [];
         for ($i = 0; $i < $days; $i++) {
-            $ymd = gmdate('Ymd', time() - $i * 86400);
+            $ymd = date('Ymd', time() - $i * 86400);
             $key = "stats:dau:{$ymd}";
             $out[$ymd] = $this->redis->sCard($key);
         }
@@ -30,7 +30,7 @@ final class AdminStatsService
     {
         $set = [];
         for ($i = 0; $i < $minutes; $i++) {
-            $key = "stats:ccu:" . gmdate('YmdHi', time() - $i * 60);
+            $key = "stats:ccu:" . date('YmdHi', time() - $i * 60);
             $members = $this->redis->sMembers($key);
             foreach ($members as $m) {
                 $set[$m] = true;
@@ -43,13 +43,13 @@ final class AdminStatsService
 
     public function getTrending(int $days = 7, int $limit = 10): array
     {
-        $today = gmdate('Ymd');
+        $today = date('Ymd');
         $tmpKey = "admin:tmp:trending:{$days}d:{$today}";
 
         if (!$this->redis->exists($tmpKey)) {
             $keys = [];
             for ($i = 0; $i < $days; $i++) {
-                $ymd = gmdate('Ymd', time() - $i * 86400);
+                $ymd = date('Ymd', time() - $i * 86400);
                 $keys[] = "lookups:daily:{$ymd}";
             }
 
@@ -81,7 +81,7 @@ final class AdminStatsService
     {
         $out = [];
         for ($i = 0; $i < $days; $i++) {
-            $ymd = gmdate('Ymd', time() - $i * 86400);
+            $ymd = date('Ymd', time() - $i * 86400);
             $out[$ymd] = $this->redis->hGetAll("events:{$ymd}");
         }
         return array_reverse($out, true);
@@ -91,8 +91,8 @@ final class AdminStatsService
 
     public function getRetention(int $daysAgo = 1): array
     {
-        $cohortDay = gmdate('Ymd', time() - $daysAgo * 86400);
-        $today = gmdate('Ymd');
+        $cohortDay = date('Ymd', time() - $daysAgo * 86400);
+        $today = date('Ymd');
 
         $cohortKey = "cohort:first_seen:{$cohortDay}";
         $todayKey = "stats:dau:{$today}";
@@ -111,8 +111,8 @@ final class AdminStatsService
     /* ========= DAU 증감 ========= */
     public function getDauDelta(): array
     {
-        $today = gmdate('Ymd');
-        $yesterday = gmdate('Ymd', time() - 86400);
+        $today = date('Ymd');
+        $yesterday = date('Ymd', time() - 86400);
 
         $todayCnt = $this->redis->sCard("stats:dau:{$today}");
         $yesterdayCnt = $this->redis->sCard("stats:dau:{$yesterday}");
@@ -132,7 +132,7 @@ final class AdminStatsService
         // 10~5분 전 구간을 “어제” 대신 비교 기준으로 사용
         $past = [];
         for ($i = $minutes * 2; $i > $minutes; $i--) {
-            $key = "stats:ccu:" . gmdate('YmdHi', time() - $i * 60);
+            $key = "stats:ccu:" . date('YmdHi', time() - $i * 60);
             foreach ($this->redis->sMembers($key) as $fp) {
                 $past[$fp] = true;
             }
@@ -170,7 +170,7 @@ final class AdminStatsService
     /* ========= 오늘 신규 vs 재방문 ========= */
     public function getTodayNewVsReturning(): array
     {
-        $today = gmdate('Ymd');
+        $today = date('Ymd');
 
         $dauKey = "stats:dau:{$today}";
         $cohortKey = "cohort:first_seen:{$today}";

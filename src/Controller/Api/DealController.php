@@ -128,7 +128,7 @@ final class DealController
                 'kind' => 'sub',
                 'id' => (string)$subId,
                 'steam_url' => "https://store.steampowered.com/sub/{$subId}/",
-                'generated_at' => gmdate('c'),
+                'generated_at' => date('c'),
             ],
         ];
 
@@ -211,7 +211,7 @@ final class DealController
                 'kind' => 'bundle',
                 'id' => (string)$bundleId,
                 'steam_url' => "https://store.steampowered.com/bundle/{$bundleId}/",
-                'generated_at' => gmdate('c'),
+                'generated_at' => date('c'),
             ],
         ];
 

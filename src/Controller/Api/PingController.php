@@ -17,7 +17,7 @@ final class PingController
     public function __invoke(ServerRequestInterface $req, ResponseInterface $res): ResponseInterface
     {
         $fp = Fingerprint::fromRequest($req);
-        $key = 'stats:ccu:' . gmdate('YmdHi');
+        $key = 'stats:ccu:' . date('YmdHi');
 
         $this->redis->sAdd($key, $fp);
         $this->redis->expire($key, 180);

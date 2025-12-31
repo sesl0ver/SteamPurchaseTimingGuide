@@ -15,7 +15,7 @@ final class StatsTracker
 
     public function markDau(string $fp): void
     {
-        $key = 'stats:dau:' . gmdate('Ymd');
+        $key = 'stats:dau:' . date('Ymd');
         $this->redis->sAdd($key, $fp);
         $this->redis->expire($key, 60 * 86400);
     }
@@ -24,7 +24,7 @@ final class StatsTracker
 
     public function markFirstSeen(string $fp): void
     {
-        $key = 'cohort:first_seen:' . gmdate('Ymd');
+        $key = 'cohort:first_seen:' . date('Ymd');
         $this->redis->sAdd($key, $fp);
         $this->redis->expire($key, 90 * 86400);
     }
@@ -33,7 +33,7 @@ final class StatsTracker
 
     public function trackEvent(string $event): void
     {
-        $key = 'events:' . gmdate('Ymd');
+        $key = 'events:' . date('Ymd');
         $this->redis->hIncrBy($key, $event, 1);
         $this->redis->expire($key, 30 * 86400);
     }

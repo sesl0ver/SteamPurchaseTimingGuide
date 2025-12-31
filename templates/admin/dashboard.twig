@@ -57,15 +57,16 @@
     <table class="w-full text-sm">
         <thead>
         <tr class="text-left text-gray-400">
-            <th>#</th><th>제목</th><th>Kind</th><th>조회수</th>
+            <th>#</th><th>Kind</th><th>ID</th><th>제목</th><th>조회수</th>
         </tr>
         </thead>
         <tbody>
         {% for item in trending %}
             <tr class="border-t border-gray-800">
                 <td>{{ loop.index }}</td>
-                <td>{{ item.title ?? '(unknown)' }}</td>
                 <td>{{ item.kind }}</td>
+                <td>{{ item.id }}</td>
+                <td>{{ item.title ?? '(unknown)' }}</td>
                 <td>{{ item.count }}</td>
             </tr>
         {% endfor %}
@@ -74,7 +75,7 @@
 </section>
 
 <section>
-    <h2 class="font-semibold mb-2">트렌딩 집중도 (Top 3)</h2>
+    <h2 class="font-semibold mb-2">트렌딩 집중도 (Top 5)</h2>
     <ul class="text-sm space-y-1">
         {% for item in trending_focus %}
             <li>

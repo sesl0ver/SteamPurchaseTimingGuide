@@ -20,14 +20,14 @@ final class DashboardController
         return $this->view->render($res, 'admin/dashboard.twig', [
             'dau' => $this->stats->getDau(7),
             'ccu' => $this->stats->getRecentCcu(5),
-            'trending' => $this->stats->getTrending(7, 10),
+            'trending' => $this->stats->getTrending(7, 20),
             'events' => $this->stats->getEvents(3),
             'retention_d1' => $this->stats->getRetention(1),
 
             // 추가
             'dau_delta' => $this->stats->getDauDelta(),
             'ccu_delta' => $this->stats->getCcuDelta(),
-            'trending_focus' => $this->stats->getTrendingFocus(7, 3),
+            'trending_focus' => $this->stats->getTrendingFocus(7, 5),
             'new_vs_return' => $this->stats->getTodayNewVsReturning(),
         ]);
     }
