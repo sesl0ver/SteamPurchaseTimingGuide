@@ -109,4 +109,64 @@ export class DealApi {
         }
         return json.data;
     }
+
+    /**
+     * Steam Store Search (server proxy)
+     * @param {string} term
+     * @param {{ force?: boolean, signal?: AbortSignal }} opts
+     */
+    async storeSearch(term, opts = {}) {
+        const q = String(term || "").trim();
+        if (!q) {
+            return { total: 0, items: [] };
+        }
+
+        const key = `search:${q.toLowerCase()}`;
+        const force = opts.force === true;
+
+        // 검색 결과는 짧게 캐시(15초)
+        const prevTtl = this._ttlMs;
+        this._ttlMs = 15_000;
+
+        try {
+            if (!force) {
+                const cached = this._getCached(key);
+                if (cached) return cached;
+            }
+
+            if (!force && this._inFlight.has(key)) {
+                return this._inFlight.get(key);
+            }
+
+            const url = `/api/storesearch?term=${encodeURIComponent(q)}`;
+
+            const p = (async () => {
+                const res = await fetch(url, {
+                    headers: { "Accept": "application/json" },
+                    signal: opts.signal
+                });
+                const json = await res.json().catch(() => null);
+
+                if (!res.ok || !json?.success) {
+                    throw new Error(json?.message || "Search API 응답이 올바르지 않습니다.");
+                }
+
+                this._cache.set(key, {
+                    data: json.data,
+                    expiresAt: Date.now() + this._ttlMs
+                });
+                return json.data;
+            })();
+
+            this._inFlight.set(key, p);
+            try {
+                return await p;
+            } finally {
+                this._inFlight.delete(key);
+            }
+        } finally {
+            // TTL 복원
+            this._ttlMs = prevTtl;
+        }
+    }
 }

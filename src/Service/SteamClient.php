@@ -21,6 +21,7 @@ final class SteamClient
     private const int TTL_SUBDETAILS       = 3600; // 1h
     private const int TTL_BUNDLE_RESOLVE   = 3600; // 1h
     private const int TTL_DLC_FOR_APP      = 3600; // 1h
+    private const int TTL_STORE_SEARCH     = 300;  // 5m (검색은 짧게 캐시)
     private const int TTL_NEGATIVE         = 600;  // 10m (없는 ID 반복 호출 방지)
 
     private Client $http;
@@ -105,6 +106,82 @@ final class SteamClient
     {
         $c = strtoupper(trim($country));
         return $c !== '' ? $c : 'KR';
+    }
+
+    /* =========================================================
+     * 0) Store search (store api/storesearch)
+     * - 프론트 CORS/차단 이슈를 피하기 위해 서버에서 proxy
+     * - 반환 데이터는 UI 목적의 최소 필드만 전달(type,name,id,tiny_image)
+     * ========================================================= */
+
+    public function storeSearch(string $term, string $country = 'KR', string $lang = 'koreana'): array
+    {
+        $term = trim($term);
+        if ($term === '') {
+            return ['success' => true, 'total' => 0, 'items' => []];
+        }
+
+        // Steam 검색은 길이 제한이 있을 수 있으니 과도한 입력은 잘라서 안전하게 처리
+        if (mb_strlen($term) > 80) {
+            $term = mb_substr($term, 0, 80);
+        }
+
+        $country = $this->normalizeCountry($country);
+        $cc = strtolower($country);
+
+        $cacheKey = 'steam:store:search:v1:' . $cc . ':' . sha1(mb_strtolower($term));
+
+        $cached = $this->cache->getJson($cacheKey);
+        if (is_array($cached) && ($cached['success'] ?? null) === true) {
+            return $cached;
+        }
+
+        try {
+            $json = $this->requestJson('GET', $this->steamBaseUrl . '/api/storesearch/', [
+                'query' => [
+                    'l' => $lang,
+                    'cc' => $cc,
+                    'term' => $term,
+                ],
+                'timeout' => 10,
+            ]);
+
+            $total = (int)($json['total'] ?? 0);
+            $items = [];
+
+            if (is_array($json['items'] ?? null)) {
+                foreach ($json['items'] as $it) {
+                    if (!is_array($it)) continue;
+                    $type = (string)($it['type'] ?? '');
+                    $id = $it['id'] ?? null;
+                    $name = (string)($it['name'] ?? '');
+                    $tiny = $it['tiny_image'] ?? null;
+
+                    // 최소 필드 보장
+                    if ($type === '' || $name === '' || $id === null) continue;
+
+                    $items[] = [
+                        'type' => $type,
+                        'name' => $name,
+                        'id' => is_int($id) ? $id : (preg_match('/^\d+$/', (string)$id) ? (int)$id : (string)$id),
+                        'tiny_image' => is_string($tiny) ? $tiny : null,
+                    ];
+                }
+            }
+
+            $payload = [
+                'success' => true,
+                'total' => $total,
+                'items' => $items,
+            ];
+
+            $this->cache->setJson($cacheKey, self::TTL_STORE_SEARCH, $payload);
+            return $payload;
+        } catch (\Throwable $e) {
+            if (is_array($cached)) return $cached;
+            // 검색은 실패해도 사용자에게 메시지 노출을 위해 success=false로 반환
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 
     /* =========================================================

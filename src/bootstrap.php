@@ -4,6 +4,7 @@ use App\Controller\Api\PingController;
 use App\Controller\PageController;
 use App\Controller\Api\DealController;
 use App\Controller\Api\TrendingController;
+use App\Controller\Api\StoreSearchController;
 use App\Controller\Admin\DashboardController;
 use App\Middleware\ApiJsonResponseMiddleware;
 use App\Middleware\AdminGuardMiddleware;
@@ -32,6 +33,9 @@ $app->group('/api', function ($group) {
 
     $group->post('/ping', PingController::class); // 스팀 기본 앱
     $group->get('/trending', [TrendingController::class, 'list']); // 최근 조회 상위
+
+    // Steam Store Search (server proxy)
+    $group->get('/storesearch', [StoreSearchController::class, 'search']);
 })->add(new ApiJsonResponseMiddleware());
 
 $cooldown = new AppIdCooldownMiddleware(

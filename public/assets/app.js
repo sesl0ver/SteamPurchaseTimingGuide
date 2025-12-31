@@ -6,6 +6,7 @@ import { LoadingOverlay } from "./ui/LoadingOverlay.js";
 import { PortalPopover } from "./ui/PortalPopover.js";
 import { ModalDlc } from "./ui/ModalDlc.js";
 import { ModalKoreanPatch } from "./ui/ModalKoreanPatch.js";
+import { ModalSearch } from "./ui/ModalSearch.js";
 
 import { HeaderRenderer } from "./render/HeaderRenderer.js";
 import { CardsRenderer } from "./render/CardsRenderer.js";
@@ -21,6 +22,10 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
     const trendingSection = $("#trendingSection");
     const trendingList = $("#trendingList");
 
+    // 검색 UI
+    const searchTermInput = $("#searchTerm");
+    const searchBtn = $("#searchBtn");
+
     if (!appIdInput || !fetchBtn || !resultArea || !gameHeader || !resultCards) {
         return;
     }
@@ -30,6 +35,7 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
     const portal = new PortalPopover();
     const dlcModal = new ModalDlc();
     const kpModal = new ModalKoreanPatch();
+    const searchModal = new ModalSearch();
 
     const narrative = new NarrativeRenderer({ resultAreaEl: resultArea });
     const headerRenderer = new HeaderRenderer({ gameHeaderEl: gameHeader });
@@ -69,6 +75,32 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
         <p class="mt-1 text-xs leading-relaxed text-white/60">${String(msg || "요청 중 오류가 발생했습니다.")}</p>
       </div>
     `;
+    }
+
+    // ===== 검색 실행 =====
+    async function runSearch() {
+        const term = (searchTermInput?.value || "").trim();
+        if (!term) return;
+
+        try {
+            loading.show();
+            const data = await api.storeSearch(term);
+            const items = Array.isArray(data?.items) ? data.items : [];
+
+            searchModal.open(term, items, ({ type, id }) => {
+                // type/id로 기본 조회로 연결 (예: app/1234)
+                if (type === "sub") appIdInput.value = `https://store.steampowered.com/sub/${id}`;
+                else if (type === "bundle") appIdInput.value = `https://store.steampowered.com/bundle/${id}`;
+                else appIdInput.value = String(id);
+
+                runFetch({ source: "user", kindOverride: type, idOverride: id });
+            });
+        } catch (e) {
+            console.error(e);
+            renderError(e?.message || "검색 중 오류가 발생했습니다.");
+        } finally {
+            loading.hide();
+        }
     }
 
     function syncUrlToDeal(kind, id) {
@@ -136,6 +168,15 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
         if (e.key === "Enter") {
             e.preventDefault();
             runFetch({ source: "user" });
+        }
+    });
+
+    // 검색 버튼 / 엔터
+    searchBtn?.addEventListener("click", () => runSearch());
+    searchTermInput?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            runSearch();
         }
     });
 
