@@ -108,3 +108,7 @@ export function humanizeAgo(iso) {
     const diffYears = Math.floor(diffMonths / 12);
     return `${diffYears}년 전`;
 }
+
+export function isNumeric (value) {
+    return typeof value === "number" && Number.isFinite(value);
+}

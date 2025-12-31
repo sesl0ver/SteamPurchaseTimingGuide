@@ -14,6 +14,7 @@ final class TrendingController
 
     private const int TMP_TTL_SECONDS = 120;           // 집계 임시 ZSET TTL (짧게)
     private const int META_TTL_SECONDS = 90 * 86400;   // 메타 TTL(참고용, 기록쪽과 동일하게 유지 권장)
+    private const string RECENT_KEY = 'lookups:recent';
 
     public function __construct(
         private readonly Redis $redis
@@ -34,7 +35,7 @@ final class TrendingController
         $days  = max(1, min(self::MAX_DAYS, $days));
         $limit = max(1, min(self::MAX_LIMIT, $limit));
 
-        $todayYmd = gmdate('Ymd');
+        $todayYmd = date('Ymd');
 
         // 임시 집계 키(캐시)
         $tmpKey = "lookups:tmp:trending:{$days}d:{$todayYmd}";
@@ -42,7 +43,7 @@ final class TrendingController
         // 최근 N일 키 생성
         $keys = [];
         for ($i = 0; $i < $days; $i++) {
-            $ymd = gmdate('Ymd', time() - ($i * 86400));
+            $ymd = date('Ymd', time() - ($i * 86400));
             $keys[] = "lookups:daily:{$ymd}";
         }
 
@@ -62,12 +63,13 @@ final class TrendingController
                     'meta' => [
                         'days' => $days,
                         'limit' => $limit,
-                        'as_of' => gmdate('Y-m-d\TH:i:s\Z'),
+                        'as_of' => date('Y-m-d\TH:i:s\Z'),
                     ],
                     'items' => [],
                 ],
             ]);
         }
+        $members = $this->redis->zRevRange(self::RECENT_KEY, 0, $limit - 1);
 
         // 메타를 파이프라인으로 묶어서 읽기
         $fields = ['kind', 'id', 'title', 'header_image', 'steam_url', 'last_seen_at'];
@@ -90,7 +92,7 @@ final class TrendingController
 
             // meta가 만료/누락되어도 rank 리스트는 유지(최소 정보로 복구)
             $items[] = [
-                'rank' => $idx + 1,
+                // 'rank' => $idx + 1,
                 'kind' => (string)($row['kind'] ?? $kind),
                 'id' => (int)($row['id'] ?? $id),
                 'title' => $row['title'] ?? null,
@@ -106,7 +108,7 @@ final class TrendingController
                 'meta' => [
                     'days' => $days,
                     'limit' => $limit,
-                    'as_of' => gmdate('Y-m-d\TH:i:s\Z'),
+                    'as_of' => date('Y-m-d\TH:i:s\Z'),
                 ],
                 'items' => $items,
             ],

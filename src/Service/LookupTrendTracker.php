@@ -10,6 +10,8 @@ final class LookupTrendTracker
 {
     private const int DAILY_TTL = 14 * 86400;
     private const int META_TTL  = 90 * 86400;
+    private const string RECENT_KEY = 'lookups:recent';
+    private const int RECENT_MAX = 500;
 
     public function __construct(
         private readonly Redis $redis,
@@ -37,9 +39,13 @@ final class LookupTrendTracker
                 return;
             }
 
-            $ymd = gmdate('Ymd');
             $member = "{$kind}:{$id}";
 
+            $now = time();
+            $this->redis->zAdd(self::RECENT_KEY, $now, $member);
+            $this->redis->zRemRangeByRank(self::RECENT_KEY, 0, -self::RECENT_MAX - 1);
+
+            $ymd = date('Ymd');
             $this->redis->zIncrBy("lookups:daily:{$ymd}", 1, $member);
             $this->redis->expire("lookups:daily:{$ymd}", self::DAILY_TTL);
 
@@ -50,7 +56,7 @@ final class LookupTrendTracker
                 'title' => $title,
                 'header_image' => $headerImage,
                 'steam_url' => $steamUrl,
-                'last_seen_at' => gmdate('c'),
+                'last_seen_at' => date('c'),
             ]);
             $this->redis->expire($metaKey, self::META_TTL);
 
