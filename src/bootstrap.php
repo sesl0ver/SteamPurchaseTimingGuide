@@ -15,7 +15,6 @@ use App\Controller\PageController;
 use App\Controller\SteamAuthController;
 use App\Controller\Api\WishlistController;
 use App\Controller\Admin\DashboardController;
-use App\Controller\Api\PingController;
 use App\Controller\Api\DealController;
 use App\Controller\Api\TrendingController;
 use App\Controller\Api\StoreSearchController;
@@ -62,8 +61,6 @@ $app->group('/api', function ($group) {
             'email'    => ['required' => true, 'type' => 'string', 'min' => 3, 'max' => 255],
             'password' => ['required' => true, 'type' => 'string', 'min' => 8, 'max' => 72],
         ]));*/
-
-    $group->post('/ping', PingController::class); // 스팀 기본 앱
     $group->get('/trending', [TrendingController::class, 'list']); // 최근 조회 상위
 
     // Steam Store Search (server proxy)

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Service\Fingerprint;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Redis;
@@ -27,6 +28,12 @@ final class TrendingController
      */
     public function list(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        // ✅ CCU(Ping) 집계: 기존 /api/ping 로직을 Trending 요청에 통합
+        $fp = Fingerprint::fromRequest($request);
+        $ccuKey = 'stats:ccu:' . date('YmdHi');
+        $this->redis->sAdd($ccuKey, $fp);
+        $this->redis->expire($ccuKey, 180);
+
         $q = $request->getQueryParams();
 
         $days  = isset($q['days']) ? (int)$q['days'] : 7;
