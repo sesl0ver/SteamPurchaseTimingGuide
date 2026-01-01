@@ -1,0 +1,98 @@
+{# templates/partials/header.twig #}
+<header class="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex items-center gap-3">
+        <div class="grid size-12 place-items-center overflow-hidden">
+            <a href="/"><img src="/assets/logo.png"
+                             alt="Steam Purchase Timing Guide logo"
+                             class="h-9 w-9 object-contain opacity-95"
+                             loading="eager"
+                             decoding="async" /></a>
+        </div>
+
+        <div>
+            <a href="/"><h1 class="flex items-center gap-2 text-xl font-semibold text-white">
+                    Steam 구매 시점 가이드
+
+                    <span class="inline-flex items-center relative -top-px
+               rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5
+               text-[11px] font-medium text-emerald-300
+               leading-none">0.9.7-beta</span>
+
+                </h1></a>
+            <p class="text-xs text-white/60">
+                가격·리뷰·이력을 기준으로, <span class="text-white/80">구매 시점을 가늠해 보세요</span>
+            </p>
+        </div>
+    </div>
+
+    {# ✅ 검색 UI (헤더 우측 빈공간) #}
+    <div class="w-full sm:w-[360px]">
+        <div class="flex items-center gap-2">
+            <div class="flex flex-1 items-center gap-2">
+
+                {% if not hide_search %}
+                    <input
+                            id="searchTerm"
+                            type="text"
+                            autocomplete="off"
+                            placeholder="게임/패키지/번들 검색"
+                            class="flex-1 rounded-2xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white placeholder:text-white/40 focus:border-white/20 focus:outline-none"
+                    />
+                    <button
+                            id="searchBtn"
+                            type="button"
+                            class="grid size-11 place-items-center rounded-2xl border border-white/10 bg-white/[0.03] text-white/80 transition-colors hover:bg-white/[0.06]"
+                            aria-label="검색"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-5">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.3-4.3"></path>
+                        </svg>
+                    </button>
+                {% endif %}
+            </div>
+            {# Steam 로그인/로그아웃 버튼(돋보기 버튼과 깔맞춤) #}
+            {% if steam_user %}
+                {# 유저 대시보드 버튼 #}
+                <a
+                        href="/dashboard"
+                        class="grid size-11 place-items-center rounded-2xl border border-white/10 bg-white/[0.03] text-white/80 transition-colors hover:bg-[#1b2838]"
+                        aria-label="유저 대시보드"
+                        title="유저 대시보드"
+                >
+                    {# 임시 SVG 아이콘 (다른 버튼과 톤 통일) #}
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         viewBox="0 0 24 24"
+                         fill="none"
+                         stroke="currentColor"
+                         stroke-width="2"
+                         stroke-linecap="round"
+                         stroke-linejoin="round"
+                         class="size-5">
+                        <circle cx="12" cy="8" r="4"></circle>
+                        <path d="M6 20c0-3.3 2.7-6 6-6s6 2.7 6 6"></path>
+                    </svg>
+                </a>
+
+                <a
+                        href="/auth/logout"
+                        class="grid size-11 place-items-center rounded-2xl border border-white/10 bg-white/[0.03] text-white/80 transition-colors hover:bg-[#1b2838]"
+                        aria-label="로그아웃"
+                        title="로그아웃"
+                >
+                    {# door/arrow icon #}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 640 640" fill="currentColor"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path d="M569 337C578.4 327.6 578.4 312.4 569 303.1L425 159C418.1 152.1 407.8 150.1 398.8 153.8C389.8 157.5 384 166.3 384 176L384 256L272 256C245.5 256 224 277.5 224 304L224 336C224 362.5 245.5 384 272 384L384 384L384 464C384 473.7 389.8 482.5 398.8 486.2C407.8 489.9 418.1 487.9 425 481L569 337zM224 160C241.7 160 256 145.7 256 128C256 110.3 241.7 96 224 96L160 96C107 96 64 139 64 192L64 448C64 501 107 544 160 544L224 544C241.7 544 256 529.7 256 512C256 494.3 241.7 480 224 480L160 480C142.3 480 128 465.7 128 448L128 192C128 174.3 142.3 160 160 160L224 160z"/></svg>
+                </a>
+            {% else %}
+                <a
+                        href="/login"
+                        class="grid size-11 place-items-center rounded-2xl border border-white/10 bg-white/[0.03] text-white/80 transition-colors hover:bg-[#1b2838]"
+                        aria-label="Steam 로그인"
+                        title="Steam 로그인"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 640 640" fill="currentColor"><!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2026 Fonticons, Inc.--><path d="M409 337C418.4 327.6 418.4 312.4 409 303.1L265 159C258.1 152.1 247.8 150.1 238.8 153.8C229.8 157.5 224 166.3 224 176L224 256L112 256C85.5 256 64 277.5 64 304L64 336C64 362.5 85.5 384 112 384L224 384L224 464C224 473.7 229.8 482.5 238.8 486.2C247.8 489.9 258.1 487.9 265 481L409 337zM416 480C398.3 480 384 494.3 384 512C384 529.7 398.3 544 416 544L480 544C533 544 576 501 576 448L576 192C576 139 533 96 480 96L416 96C398.3 96 384 110.3 384 128C384 145.7 398.3 160 416 160L480 160C497.7 160 512 174.3 512 192L512 448C512 465.7 497.7 480 480 480L416 480z"/></svg>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</header>

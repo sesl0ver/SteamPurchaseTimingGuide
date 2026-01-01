@@ -15,10 +15,12 @@ use App\Controller\Api\DealController;
 use App\Controller\Api\PingController;
 use App\Steam\SteamWebApiClient;
 use App\Steam\SteamService;
+use App\Steam\SteamOpenIdService;
 use App\Service\SteamClient;
 use App\Service\SteamDealHelper;
 use App\Service\ItadClient;
 use App\Repository\CommunityKoreanPatchRepository;
+use App\Repository\UserRepository;
 use App\Service\CommunityKoreanPatchParser;
 use App\Service\LookupTrendTracker;
 use App\Service\AbuseGuard;
@@ -100,6 +102,16 @@ $container->set(SteamWebApiClient::class, function () {
 
 $container->set(SteamService::class, function ($c) {
     return new SteamService($c->get(SteamWebApiClient::class));
+});
+
+// Steam OpenID (로그인)
+$container->set(SteamOpenIdService::class, function ($c) {
+    return new SteamOpenIdService($c->get(ClientInterface::class));
+});
+
+// User repository (Steam 유저 정보 저장)
+$container->set(UserRepository::class, function ($c) {
+    return new UserRepository($c->get(PDO::class));
 });
 
 $container->set(SteamClient::class, function ($c) {
