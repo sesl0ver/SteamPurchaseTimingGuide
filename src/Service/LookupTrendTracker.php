@@ -34,20 +34,29 @@ final class LookupTrendTracker
             $this->stats->markDau($fp);
             $this->stats->markFirstSeen($fp);
 
-            // 어뷰징 차단
-            if (!$this->abuse->allowLookup($fp, $kind, $id)) {
-                return;
-            }
-
             $member = "{$kind}:{$id}";
 
             $now = time();
+
+            // "최근 조회" 목록은 재조회 시에도 항상 최신으로 갱신되어야 하므로
+            // 어뷰징/중복 차단 로직과 분리해서 먼저 업데이트한다.
             $this->redis->zAdd(self::RECENT_KEY, $now, $member);
-            $this->redis->zRemRangeByRank(self::RECENT_KEY, 0, -self::RECENT_MAX - 1);
+
+            // ZSET trim: RECENT_MAX 초과분(가장 오래된 것)만 제거
+            // (음수 인덱스 기반 제거는 개수가 적을 때 전체가 지워질 수 있어 방지)
+            $count = (int) $this->redis->zCard(self::RECENT_KEY);
+            if ($count > self::RECENT_MAX) {
+                $overflow = $count - self::RECENT_MAX;
+                $this->redis->zRemRangeByRank(self::RECENT_KEY, 0, $overflow - 1);
+            }
 
             $ymd = date('Ymd');
-            $this->redis->zIncrBy("lookups:daily:{$ymd}", 1, $member);
-            $this->redis->expire("lookups:daily:{$ymd}", self::DAILY_TTL);
+
+            // 어뷰징/중복 차단은 "트렌딩 카운트"에만 적용 (최근 조회 갱신과 분리)
+            if ($this->abuse->allowLookup($fp, $kind, $id)) {
+                $this->redis->zIncrBy("lookups:daily:{$ymd}", 1, $member);
+                $this->redis->expire("lookups:daily:{$ymd}", self::DAILY_TTL);
+            }
 
             $metaKey = "lookup:meta:{$kind}:{$id}";
             $this->redis->hMSet($metaKey, [

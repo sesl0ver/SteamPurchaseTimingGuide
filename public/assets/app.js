@@ -224,7 +224,7 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
             api,
             days: 7,
             limit: 10,
-            intervalMs: 120_000, // 2분 (원하면 180_000)
+            intervalMs: 60_000, // 1분
         })
         : null;
 
