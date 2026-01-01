@@ -49,6 +49,13 @@
               대시보드
             </a>
 
+            <a
+                    href="/dashboard/wishlist"
+                    class="block rounded-xl px-3 py-2 text-white/70 hover:bg-white/[0.06]"
+            >
+              찜 목록 관리
+            </a>
+
             {# 향후 메뉴 확장 여지 #}
             {#
             <a href="#" class="block rounded-xl px-3 py-2 text-white/70 hover:bg-white/[0.06]">
@@ -92,7 +99,7 @@
         <div class="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
           <div class="flex items-end justify-between">
             <h3 class="text-lg font-semibold text-white">찜 목록</h3>
-            <span class="text-xs text-white/50">총 {{ wishlist|length }}개</span>
+            <span class="text-xs text-white/50">총 {{ wishlist_total }}개</span>
           </div>
 
           {% if wishlist is empty %}
@@ -124,19 +131,18 @@
                       <p class="mt-1 text-xs text-white/55">추가일: {{ item.created_at|date("Y-m-d") }}</p>
                     </div>
 
-                    <div class="shrink-0">
-                      <form method="post" action="/dashboard/wishlist/remove" onsubmit="return confirm('찜을 취소하시겠습니까?');">
-                        <input type="hidden" name="kind" value="{{ item.kind }}" />
-                        <input type="hidden" name="id" value="{{ item.item_id }}" />
-                        <button type="submit" class="rounded-xl border border-white/15 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/[0.06]">
-                          찜 취소
-                        </button>
-                      </form>
-                    </div>
                   </div>
                 </div>
               {% endfor %}
             </div>
+
+            {% if wishlist_total > 3 %}
+              <div class="mt-4 flex justify-end">
+                <a href="/dashboard/wishlist" class="text-xs text-emerald-300 hover:text-emerald-200">
+                  찜 목록 전체 보기 →
+                </a>
+              </div>
+            {% endif %}
           {% endif %}
         </div>
 

@@ -14,6 +14,29 @@ class WishlistRepository
 {
     public function __construct(private PDO $pdo) {}
 
+    public function countByUser(int $userId): int
+    {
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM wishlist WHERE user_id = :uid');
+        $stmt->execute([':uid' => $userId]);
+        return (int)($stmt->fetchColumn() ?: 0);
+    }
+
+    /**
+     * @return array<int,array<string,mixed>>
+     */
+    public function listByUserPaged(int $userId, int $limit, int $offset): array
+    {
+        $stmt = $this->pdo->prepare(
+            'SELECT kind, item_id, title, header_image, steam_url, created_at '
+            . 'FROM wishlist WHERE user_id = :uid ORDER BY created_at DESC LIMIT :lim OFFSET :off'
+        );
+        $stmt->bindValue(':uid', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':off', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
     /**
      * @return array<int,array<string,mixed>>
      */

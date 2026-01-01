@@ -15,6 +15,19 @@
                         Steam 앱 ID 또는 스토어 주소를 그대로 붙여 넣고 버튼을 눌러주세요.
                     </p>
                 </div>
+
+                {# ✅ 찜 목록에서 선택 (로그인 시) #}
+                {% if steam_user %}
+                  <div class="sm:self-center">
+                    <button
+                            id="wishlistSelectBtn"
+                            type="button"
+                            class="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm font-semibold text-white/80 transition-colors hover:bg-white/[0.06]"
+                    >
+                      찜 목록에서 선택
+                    </button>
+                  </div>
+                {% endif %}
             </div>
 
             <div class="mt-4 flex flex-col gap-3 sm:flex-row">

@@ -40,6 +40,9 @@ $app->get('/auth/logout', SteamAuthController::class . ':logout');
 // 대시보드 메인
 $app->get('/dashboard', [PageController::class, 'dashboard']);
 
+// 찜 목록 관리
+$app->get('/dashboard/wishlist', [PageController::class, 'wishlistManage']);
+
 // 회원 탈퇴 (POST 권장, 지금은 GET으로 최소 구현)
 $app->post('/dashboard/delete', [AuthController::class, 'withdraw']);
 // ✅ 템플릿/기존 링크 호환: /auth/withdraw
@@ -68,6 +71,7 @@ $app->group('/api', function ($group) {
 
     // Wishlist
     $group->get('/wishlist/status', [WishlistController::class, 'status']);
+    $group->get('/wishlist/list', [WishlistController::class, 'list']);
     $group->post('/wishlist/toggle', [WishlistController::class, 'toggle']);
 })->add(new ApiJsonResponseMiddleware());
 

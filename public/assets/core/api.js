@@ -169,4 +169,59 @@ export class DealApi {
             this._ttlMs = prevTtl;
         }
     }
+
+    /**
+     * Wishlist 목록 (로그인 필요)
+     * GET /api/wishlist/list
+     */
+    async wishlistList(opts = {}) {
+        const key = "wishlist:list";
+        const force = opts.force === true;
+
+        // 찜 목록은 짧게 캐시(15초)
+        const prevTtl = this._ttlMs;
+        this._ttlMs = 15_000;
+
+        try {
+            if (!force) {
+                const cached = this._getCached(key);
+                if (cached) return cached;
+            }
+
+            if (!force && this._inFlight.has(key)) {
+                return this._inFlight.get(key);
+            }
+
+            const p = (async () => {
+                const res = await fetch("/api/wishlist/list", {
+                    headers: { "Accept": "application/json" },
+                    signal: opts.signal
+                });
+                const json = await res.json().catch(() => null);
+
+                if (res.status === 401) {
+                    throw new Error("401");
+                }
+
+                if (!res.ok || !json?.success) {
+                    throw new Error(json?.message || "Wishlist API 응답이 올바르지 않습니다.");
+                }
+
+                this._cache.set(key, {
+                    data: json.data,
+                    expiresAt: Date.now() + this._ttlMs
+                });
+                return json.data;
+            })();
+
+            this._inFlight.set(key, p);
+            try {
+                return await p;
+            } finally {
+                this._inFlight.delete(key);
+            }
+        } finally {
+            this._ttlMs = prevTtl;
+        }
+    }
 }

@@ -21,6 +21,7 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
     const resultCards = $("#resultCards");
     const trendingSection = $("#trendingSection");
     const trendingList = $("#trendingList");
+    const wishlistSelectBtn = $("#wishlistSelectBtn");
 
     // 검색 UI
     const searchTermInput = $("#searchTerm");
@@ -103,6 +104,39 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
         }
     }
 
+    // ===== 찜 목록에서 선택 =====
+    async function openWishlistSelect() {
+        try {
+            loading.show();
+            const data = await api.wishlistList();
+            const items = Array.isArray(data?.items) ? data.items : [];
+
+            const modalItems = items.map((it) => ({
+                type: String(it?.kind || "app"),
+                id: it?.item_id ?? "",
+                name: String(it?.title || ""),
+                tiny_image: typeof it?.header_image === "string" ? it.header_image : "",
+            })).filter((x) => x.id !== "");
+
+            searchModal.open("찜 목록", modalItems, ({ type, id }) => {
+                if (type === "sub") appIdInput.value = `https://store.steampowered.com/sub/${id}`;
+                else if (type === "bundle") appIdInput.value = `https://store.steampowered.com/bundle/${id}`;
+                else appIdInput.value = String(id);
+
+                runFetch({ source: "user", kindOverride: type, idOverride: id });
+            });
+        } catch (e) {
+            if ((e?.message || "") === "401") {
+                window.location.href = "/login";
+                return;
+            }
+            console.error(e);
+            renderError("찜 목록을 불러오지 못했어요.");
+        } finally {
+            loading.hide();
+        }
+    }
+
     function syncUrlToDeal(kind, id) {
         const target = `/${kind}/${id}`;
 
@@ -164,6 +198,8 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
     }
 
     fetchBtn.addEventListener("click", () => runFetch({ source: "user" }));
+    wishlistSelectBtn?.addEventListener("click", () => openWishlistSelect());
+    wishlistSelectBtn?.addEventListener("click", () => openWishlistSelect());
     appIdInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
             e.preventDefault();

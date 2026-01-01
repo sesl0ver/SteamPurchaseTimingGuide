@@ -42,6 +42,32 @@ class WishlistController
     }
 
     /**
+     * GET /api/wishlist/list
+     * - 메인 페이지에서 "찜 목록에서 선택" 모달을 띄우기 위해 사용
+     */
+    public function list(Request $request, Response $response): Response
+    {
+        $session = $_SESSION['steam_user'] ?? null;
+        if (!$session) {
+            return ApiResponse::error($response, '로그인이 필요합니다.', 1401, 401);
+        }
+
+        $userId = $this->resolveInternalUserId($session);
+        if ($userId === null) {
+            return ApiResponse::error($response, '유저 정보를 확인할 수 없습니다.', 1402, 401);
+        }
+
+        // 너무 큰 목록 방지: 기본 500개까지만 반환
+        $items = $this->wishlists->listByUser($userId, 500);
+        $total = $this->wishlists->countByUser($userId);
+
+        return ApiResponse::success($response, [
+            'total' => $total,
+            'items' => $items,
+        ]);
+    }
+
+    /**
      * POST /api/wishlist/toggle
      * body(json): {kind,id,title,header_image,steam_url}
      */
