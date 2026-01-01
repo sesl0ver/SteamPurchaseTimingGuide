@@ -21,6 +21,7 @@ use App\Service\SteamDealHelper;
 use App\Service\ItadClient;
 use App\Repository\CommunityKoreanPatchRepository;
 use App\Repository\UserRepository;
+use App\Repository\WishlistRepository;
 use App\Service\CommunityKoreanPatchParser;
 use App\Service\LookupTrendTracker;
 use App\Service\AbuseGuard;
@@ -28,6 +29,8 @@ use App\Service\StatsTracker;
 use App\Middleware\AdminGuardMiddleware;
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
+use App\Controller\Api\WishlistController;
+use App\Controller\AuthController;
 
 $dotenv = Dotenv::createImmutable(dirname(__DIR__));
 $dotenv->load();
@@ -114,6 +117,11 @@ $container->set(UserRepository::class, function ($c) {
     return new UserRepository($c->get(PDO::class));
 });
 
+// Wishlist repository (찜)
+$container->set(WishlistRepository::class, function ($c) {
+    return new WishlistRepository($c->get(PDO::class));
+});
+
 $container->set(SteamClient::class, function ($c) {
     return new SteamClient(
         $c->get(RedisCache::class)
@@ -153,6 +161,21 @@ $container->set(DealController::class, function ($c) {
         $c->get(ItadClient::class),
         $c->get(ClientInterface::class),
         $c->get(LookupTrendTracker::class),
+    );
+});
+
+$container->set(WishlistController::class, function ($c) {
+    return new WishlistController(
+        $c->get(WishlistRepository::class),
+        $c->get(UserRepository::class),
+    );
+});
+
+$container->set(AuthController::class, function ($c) {
+    return new AuthController(
+        $c->get(PDO::class),
+        $c->get(UserRepository::class),
+        $c->get(WishlistRepository::class),
     );
 });
 
