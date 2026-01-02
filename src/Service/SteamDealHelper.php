@@ -65,27 +65,6 @@ final class SteamDealHelper
             $deal = $this->buildDealDataFromOverview($itad);
         }
 
-        // ✅ 신규: Prices v3 기반 history low 트렌드 (all/y1/m3)
-        $trend = null;
-        if (is_array($itad) && isset($itad['itadId']) && is_string($itad['itadId']) && $itad['itadId'] !== '') {
-            $trend = $this->itadClient->getHistoryLowTrend($itad['itadId'], $country);
-        }
-
-        if (!is_array($trend)) {
-            $o = is_array($itad) ? ($itad['overview'] ?? null) : null;
-            $fallbackAll = is_array($o) ? ($o['lowest']['price'] ?? null) : null;
-            $fallbackCurrency = is_array($fallbackAll) ? ($fallbackAll['currency'] ?? null) : null;
-            $trend = [
-                'all' => $fallbackAll,
-                'y1' => null,
-                'm3' => null,
-                'currency' => $fallbackCurrency,
-                'source' => 'overview_lowest',
-            ];
-        }
-
-        $deal['historical_low_trend'] = $trend;
-
         // ✅ 커뮤니티 한글패치(DB) 조회 + 파싱
         $patchRow = $this->communityPatchRepo->findByAppId((int)$steamAppId);
         $communityPatch = $this->communityPatchParser->fromRow($patchRow);

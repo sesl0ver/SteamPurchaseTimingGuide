@@ -111,10 +111,9 @@ final class DealController
         // 3) ITAD (sub) : (⚠️ ItadClient 3번에서 getDealBySteamSubId가 overview를 포함하도록 맞출 예정)
         $itad = $this->itadClient->getDealBySteamSubId($subId, $country);
         $overview = is_array($itad['overview'] ?? null) ? $itad['overview'] : null;
-        $historyLowTrend = is_array($itad['history_low_trend'] ?? null) ? $itad['history_low_trend'] : null;
 
         // 4) build deal
-        $deal = $this->buildSubDealPayload($steamSub, $overview, $historyLowTrend);
+        $deal = $this->buildSubDealPayload($steamSub, $overview);
 
         // ✅ 응답 축소: deal 계산에만 사용한 내부 필드는 제거
         // NOTE: steam.sub.price는 클라이언트 fallback(ITAD current 없음) 및 디버그를 위해 유지합니다.
@@ -194,10 +193,9 @@ final class DealController
         // 3) ITAD bundle deal (⚠️ ItadClient 3번에서 getDealBySteamBundleId 추가 예정)
         $itad = $this->itadClient->getDealBySteamBundleId($bundleId, $country);
         $overview = is_array($itad['overview'] ?? null) ? $itad['overview'] : null;
-        $historyLowTrend = is_array($itad['history_low_trend'] ?? null) ? $itad['history_low_trend'] : null;
 
         // 4) build deal
-        $deal = $this->buildBundleDealPayload($steamBundle, $overview, $historyLowTrend);
+        $deal = $this->buildBundleDealPayload($steamBundle, $overview);
 
         // ✅ 응답 축소: deal 계산에만 사용한 내부 필드는 제거
         // NOTE: steam.bundle.price는 클라이언트 fallback(ITAD current 없음) 및 디버그를 위해 유지합니다.
@@ -387,7 +385,7 @@ final class DealController
      * Deal merge: sub
      * ========================================================= */
 
-    private function buildSubDealPayload(array $steamSub, ?array $overview, ?array $historyLowTrend = null): array
+    private function buildSubDealPayload(array $steamSub, ?array $overview): array
     {
         $steamPrice = $steamSub['price'] ?? null;
         $fallbackCurrency = is_array($steamPrice) ? ($steamPrice['currency'] ?? 'KRW') : 'KRW';
@@ -442,24 +440,6 @@ final class DealController
                 'is_lowest_now' => $low['is_lowest_now'] ?? $isLowestNow,
             ];
         }
-        // ✅ 신규: Prices v3 기반 history low 트렌드 (all/y1/m3)
-        $trend = null;
-        if (is_array($historyLowTrend)) {
-            $trend = $historyLowTrend;
-        } else {
-            // fallback: overview.lowest를 all에만 채움 (y1/m3는 알 수 없음)
-            $fallbackAll = $overview['lowest']['price']['amount'] ?? null;
-            $trend = [
-                'all' => $fallbackAll,
-                'y1' => null,
-                'm3' => null,
-                'currency' => $overview['lowest']['price']['currency'] ?? $fallbackCurrency,
-                'source' => 'overview_lowest',
-            ];
-        }
-
-        $deal['historical_low_trend'] = $trend;
-
 
         return $deal;
     }
@@ -468,7 +448,7 @@ final class DealController
      * Deal merge: bundle
      * ========================================================= */
 
-    private function buildBundleDealPayload(array $steamBundle, ?array $overview, ?array $historyLowTrend = null): array
+    private function buildBundleDealPayload(array $steamBundle, ?array $overview): array
     {
         $steamPrice = $steamBundle['price'] ?? null;
         $fallbackCurrency = is_array($steamPrice) ? ($steamPrice['currency'] ?? 'KRW') : 'KRW';
@@ -524,24 +504,6 @@ final class DealController
                 'is_lowest_now' => $low['is_lowest_now'] ?? $isLowestNow,
             ];
         }
-        // ✅ 신규: Prices v3 기반 history low 트렌드 (all/y1/m3)
-        $trend = null;
-        if (is_array($historyLowTrend)) {
-            $trend = $historyLowTrend;
-        } else {
-            // fallback: overview.lowest를 all에만 채움 (y1/m3는 알 수 없음)
-            $fallbackAll = $overview['lowest']['price']['amount'] ?? null;
-            $trend = [
-                'all' => $fallbackAll,
-                'y1' => null,
-                'm3' => null,
-                'currency' => $overview['lowest']['price']['currency'] ?? $fallbackCurrency,
-                'source' => 'overview_lowest',
-            ];
-        }
-
-        $deal['historical_low_trend'] = $trend;
-
 
         return $deal;
     }
