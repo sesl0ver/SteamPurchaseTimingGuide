@@ -73,22 +73,22 @@ final class CommunityKoreanPatchApiController
         }
 
         $patchText = (string)($payload['patch_text'] ?? '');
-        $rawIds = $payload['app_ids'] ?? '';
-        $appIds = $this->normalizeAppIds($rawIds);
+        $name = (string)($payload['name'] ?? '');
+        $appIdRaw = trim((string)($payload['app_id'] ?? ''));
 
-        if ($appIds === []) {
+        if ($appIdRaw === '' || !ctype_digit($appIdRaw)) {
             return $this->json($res->withStatus(422), [
                 'success' => false,
-                'message' => 'app_ids is required',
+                'message' => 'app_id is required',
             ]);
         }
 
-        $updated = $this->repo->upsertMany($appIds, $patchText);
+        $ok = $this->repo->upsertOne((int)$appIdRaw, $name, $patchText);
 
         return $this->json($res, [
             'success' => true,
             'data' => [
-                'updated' => $updated,
+                'updated' => $ok ? 1 : 0,
             ],
         ]);
     }
@@ -104,40 +104,6 @@ final class CommunityKoreanPatchApiController
                 'deleted' => $ok ? 1 : 0,
             ],
         ]);
-    }
-
-    /**
-     * @param mixed $raw
-     * @return int[]
-     */
-    private function normalizeAppIds(mixed $raw): array
-    {
-        $ids = [];
-        if (is_array($raw)) {
-            foreach ($raw as $v) {
-                $s = trim((string)$v);
-                if ($s !== '' && ctype_digit($s)) {
-                    $ids[] = (int)$s;
-                }
-            }
-        } else {
-            $s = trim((string)$raw);
-            if ($s !== '') {
-                // 줄바꿈/쉼표/공백 모두 허용
-                $parts = preg_split('/[\r\n,\s]+/', $s) ?: [];
-                foreach ($parts as $p) {
-                    $p = trim((string)$p);
-                    if ($p !== '' && ctype_digit($p)) {
-                        $ids[] = (int)$p;
-                    }
-                }
-            }
-        }
-
-        // 중복 제거
-        $ids = array_values(array_unique($ids));
-        sort($ids);
-        return $ids;
     }
 
     private function json(ResponseInterface $res, array $data): ResponseInterface

@@ -72,21 +72,32 @@
       <div class="flex items-center justify-between">
         <div>
           <div id="kpModalTitle" class="text-base font-semibold">등록/수정</div>
-          <div class="text-xs admin-muted">Steam AppID는 여러 개를 한 번에 입력할 수 있습니다.</div>
+          <div class="text-xs admin-muted">Steam AppID는 1개만 등록/수정할 수 있습니다.</div>
         </div>
         <button id="kpModalClose" class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm hover:bg-white/[0.08]">닫기</button>
       </div>
 
       <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div>
-          <label class="text-xs admin-muted">Steam AppID (textarea)</label>
-          <textarea
-            id="kpAppIds"
-            rows="6"
-            class="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900 p-3 text-sm font-mono outline-none focus:border-white/20"
-            placeholder="예) 2638890\n570\n730"
-          ></textarea>
-          <div class="mt-2 text-[11px] admin-muted">쉼표/공백/줄바꿈 모두 구분자로 인식합니다.</div>
+          <label class="text-xs admin-muted">Steam AppID</label>
+          <input
+            id="kpAppId"
+            type="text"
+            inputmode="numeric"
+            class="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm font-mono outline-none focus:border-white/20"
+            placeholder="예) 2638890"
+          />
+
+          <div class="mt-4">
+            <label class="text-xs admin-muted">게임 이름</label>
+            <input
+              id="kpName"
+              type="text"
+              class="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-white/20"
+              placeholder="예) Palworld"
+            />
+            <div class="mt-2 text-[11px] admin-muted">리스트에 표시될 게임명입니다.</div>
+          </div>
         </div>
 
         <div>

@@ -21,7 +21,8 @@
     modalSave: $('kpModalSave'),
     modalDelete: $('kpModalDelete'),
     modalHint: $('kpModalHint'),
-    appIds: $('kpAppIds'),
+    appId: $('kpAppId'),
+    name: $('kpName'),
     patchText: $('kpPatchText'),
   };
 
@@ -138,15 +139,17 @@
     els.modalTitle.textContent = (mode === 'edit') ? ('수정 #' + row.app_id) : '신규 등록';
     els.modalHint.textContent = (mode === 'edit')
       ? 'AppID는 수정 모드에서 그대로 유지하는 것을 권장합니다. (원하면 변경 가능)'
-      : '여러 AppID를 입력하면 동일한 patch_text로 일괄 등록/수정됩니다.';
+      : 'Steam AppID는 1개만 입력할 수 있습니다.';
 
     if (mode === 'edit') {
-      els.appIds.value = String(row.app_id);
+      els.appId.value = String(row.app_id);
+      els.name.value = row.name || '';
       els.patchText.value = row.patch_text || '';
       els.modalDelete.classList.remove('hidden');
       els.modalDelete.dataset.appId = String(row.app_id);
     } else {
-      els.appIds.value = '';
+      els.appId.value = '';
+      els.name.value = '';
       els.patchText.value = '';
       els.modalDelete.classList.add('hidden');
       delete els.modalDelete.dataset.appId;
@@ -209,12 +212,13 @@
   }
 
   async function save() {
-    const appIds = els.appIds.value;
+    const appId = (els.appId.value || '').trim();
+    const name = (els.name.value || '').trim();
     const patchText = els.patchText.value;
 
     const json = await apiFetch('/admin/api/korean-patch', {
       method: 'POST',
-      body: JSON.stringify({ app_ids: appIds, patch_text: patchText }),
+      body: JSON.stringify({ app_id: appId, name: name, patch_text: patchText }),
     });
 
     showToast(`저장 완료 (${json.data.updated}건)`);

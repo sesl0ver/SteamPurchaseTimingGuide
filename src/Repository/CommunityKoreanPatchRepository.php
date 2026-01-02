@@ -12,7 +12,7 @@ final class CommunityKoreanPatchRepository
     /**
      * Admin용 Raw 조회 (편집 화면용)
      *
-     * @return array{app_id:int, link_count:int, patch_text:string, updated_at:string}|null
+     * @return array{app_id:int, name:string, link_count:int, patch_text:string, updated_at:string}|null
      */
     public function findRawByAppId(int $appId): ?array
     {
@@ -20,12 +20,12 @@ final class CommunityKoreanPatchRepository
     }
 
     /**
-     * @return array{app_id:int, link_count:int, patch_text:string, updated_at:string}|null
+     * @return array{app_id:int, name:string, link_count:int, patch_text:string, updated_at:string}|null
      */
     public function findByAppId(int $appId): ?array
     {
         $sql = <<<SQL
-SELECT app_id, link_count, patch_text, updated_at
+SELECT app_id, name, link_count, patch_text, updated_at
 FROM public.community_korean_patch
 WHERE app_id = :app_id
 LIMIT 1
@@ -41,6 +41,7 @@ SQL;
 
         return [
             'app_id' => (int)$row['app_id'],
+            'name' => (string)($row['name'] ?? ''),
             'link_count' => (int)$row['link_count'],
             'patch_text' => (string)$row['patch_text'],
             'updated_at' => (string)$row['updated_at'],
@@ -112,20 +113,20 @@ SQL;
     }
 
     /**
-     * Admin용 Upsert(여러 AppID 지원)
-     *
-     * @param int[] $appIds
+     * Admin용 Upsert(단일 AppID)
      */
-    public function upsertMany(array $appIds, string $patchText): int
+    public function upsertOne(int $appId, string $name, string $patchText): bool
     {
         $patchText = (string)$patchText;
+        $name = trim((string)$name);
         $linkCount = $this->countLinks($patchText);
 
         $sql = <<<SQL
-INSERT INTO public.community_korean_patch (app_id, link_count, patch_text, updated_at)
-VALUES (:app_id, :link_count, :patch_text, NOW())
+INSERT INTO public.community_korean_patch (app_id, name, link_count, patch_text, updated_at)
+VALUES (:app_id, :name, :link_count, :patch_text, NOW())
 ON CONFLICT (app_id)
 DO UPDATE SET
+  name = EXCLUDED.name,
   link_count = EXCLUDED.link_count,
   patch_text = EXCLUDED.patch_text,
   updated_at = NOW()
@@ -133,16 +134,15 @@ SQL;
 
         $stmt = $this->pdo->prepare($sql);
 
-        $updated = 0;
-        foreach ($appIds as $appId) {
-            $stmt->execute([
-                'app_id' => (int)$appId,
-                'link_count' => $linkCount,
-                'patch_text' => $patchText,
-            ]);
-            $updated++;
-        }
-        return $updated;
+        $stmt->execute([
+            'app_id' => (int)$appId,
+            'name' => $name,
+            'link_count' => $linkCount,
+            'patch_text' => $patchText,
+        ]);
+
+        // INSERT/UPDATE 모두 rowCount()가 1로 나오도록 기대 (드라이버에 따라 0일 수도 있어 bool로 처리)
+        return $stmt->rowCount() >= 0;
     }
 
     public function deleteByAppId(int $appId): bool
