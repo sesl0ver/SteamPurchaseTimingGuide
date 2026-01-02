@@ -111,10 +111,10 @@ final class DealController
         // 3) ITAD (sub) : (⚠️ ItadClient 3번에서 getDealBySteamSubId가 overview를 포함하도록 맞출 예정)
         $itad = $this->itadClient->getDealBySteamSubId($subId, $country);
         $overview = is_array($itad['overview'] ?? null) ? $itad['overview'] : null;
-        $historyLow = is_array($itad['history_low'] ?? null) ? $itad['history_low'] : null;
+        $historyLowTrend = is_array($itad['history_low_trend'] ?? null) ? $itad['history_low_trend'] : null;
 
         // 4) build deal
-        $deal = $this->buildSubDealPayload($steamSub, $overview, $historyLow);
+        $deal = $this->buildSubDealPayload($steamSub, $overview, $historyLowTrend);
 
         // ✅ 응답 축소: deal 계산에만 사용한 내부 필드는 제거
         // NOTE: steam.sub.price는 클라이언트 fallback(ITAD current 없음) 및 디버그를 위해 유지합니다.
@@ -194,10 +194,10 @@ final class DealController
         // 3) ITAD bundle deal (⚠️ ItadClient 3번에서 getDealBySteamBundleId 추가 예정)
         $itad = $this->itadClient->getDealBySteamBundleId($bundleId, $country);
         $overview = is_array($itad['overview'] ?? null) ? $itad['overview'] : null;
-        $historyLow = is_array($itad['history_low'] ?? null) ? $itad['history_low'] : null;
+        $historyLowTrend = is_array($itad['history_low_trend'] ?? null) ? $itad['history_low_trend'] : null;
 
         // 4) build deal
-        $deal = $this->buildBundleDealPayload($steamBundle, $overview, $historyLow);
+        $deal = $this->buildBundleDealPayload($steamBundle, $overview, $historyLowTrend);
 
         // ✅ 응답 축소: deal 계산에만 사용한 내부 필드는 제거
         // NOTE: steam.bundle.price는 클라이언트 fallback(ITAD current 없음) 및 디버그를 위해 유지합니다.
@@ -387,7 +387,7 @@ final class DealController
      * Deal merge: sub
      * ========================================================= */
 
-    private function buildSubDealPayload(array $steamSub, ?array $overview, ?array $historyLow): array
+    private function buildSubDealPayload(array $steamSub, ?array $overview, ?array $historyLowTrend = null): array
     {
         $steamPrice = $steamSub['price'] ?? null;
         $fallbackCurrency = is_array($steamPrice) ? ($steamPrice['currency'] ?? 'KRW') : 'KRW';
@@ -428,10 +428,7 @@ final class DealController
         }
 
         // 3) historical low: historylow/v1이 있으면 우선, 없으면 overview['lowest'] 사용
-        $low = $this->extractHistoryLowNormalized($historyLow);
-        if (!is_array($low)) {
-            $low = $this->extractLowestFromOverview($overview);
-        }
+        $low = $this->extractLowestFromOverview($overview);
 
         if (is_array($low) && $low['amount'] !== null) {
             $curAmount = $deal['current']['amount'] ?? null;
@@ -445,6 +442,24 @@ final class DealController
                 'is_lowest_now' => $low['is_lowest_now'] ?? $isLowestNow,
             ];
         }
+        // ✅ 신규: Prices v3 기반 history low 트렌드 (all/y1/m3)
+        $trend = null;
+        if (is_array($historyLowTrend)) {
+            $trend = $historyLowTrend;
+        } else {
+            // fallback: overview.lowest를 all에만 채움 (y1/m3는 알 수 없음)
+            $fallbackAll = $overview['lowest']['price']['amount'] ?? null;
+            $trend = [
+                'all' => $fallbackAll,
+                'y1' => null,
+                'm3' => null,
+                'currency' => $overview['lowest']['price']['currency'] ?? $fallbackCurrency,
+                'source' => 'overview_lowest',
+            ];
+        }
+
+        $deal['historical_low_trend'] = $trend;
+
 
         return $deal;
     }
@@ -453,7 +468,7 @@ final class DealController
      * Deal merge: bundle
      * ========================================================= */
 
-    private function buildBundleDealPayload(array $steamBundle, ?array $overview, ?array $historyLow): array
+    private function buildBundleDealPayload(array $steamBundle, ?array $overview, ?array $historyLowTrend = null): array
     {
         $steamPrice = $steamBundle['price'] ?? null;
         $fallbackCurrency = is_array($steamPrice) ? ($steamPrice['currency'] ?? 'KRW') : 'KRW';
@@ -495,10 +510,7 @@ final class DealController
         }
 
         // 3) historical low
-        $low = $this->extractHistoryLowNormalized($historyLow);
-        if (!is_array($low)) {
-            $low = $this->extractLowestFromOverview($overview);
-        }
+        $low = $this->extractLowestFromOverview($overview);
 
         if (is_array($low) && $low['amount'] !== null) {
             $curAmount = $deal['current']['amount'] ?? null;
@@ -512,6 +524,24 @@ final class DealController
                 'is_lowest_now' => $low['is_lowest_now'] ?? $isLowestNow,
             ];
         }
+        // ✅ 신규: Prices v3 기반 history low 트렌드 (all/y1/m3)
+        $trend = null;
+        if (is_array($historyLowTrend)) {
+            $trend = $historyLowTrend;
+        } else {
+            // fallback: overview.lowest를 all에만 채움 (y1/m3는 알 수 없음)
+            $fallbackAll = $overview['lowest']['price']['amount'] ?? null;
+            $trend = [
+                'all' => $fallbackAll,
+                'y1' => null,
+                'm3' => null,
+                'currency' => $overview['lowest']['price']['currency'] ?? $fallbackCurrency,
+                'source' => 'overview_lowest',
+            ];
+        }
+
+        $deal['historical_low_trend'] = $trend;
+
 
         return $deal;
     }
@@ -569,42 +599,6 @@ final class DealController
         }
 
         return null;
-    }
-
-    /**
-     * historylow/v1 포맷/커스텀 포맷 모두 지원
-     */
-    private function extractHistoryLowNormalized(?array $historyLow): ?array
-    {
-        if (!is_array($historyLow)) return null;
-
-        // Case A) historylow/v1 리스트: [ { id, low: { ... } } ]
-        if (isset($historyLow[0]['low']) && is_array($historyLow[0]['low'])) {
-            $low = $historyLow[0]['low'];
-
-            $amount = $this->toIntOrNull($low['price']['amountInt'] ?? $low['price']['amount'] ?? null);
-            if ($amount === null) return null;
-
-            return [
-                'amount' => $amount,
-                'currency' => $low['price']['currency'] ?? null,
-                'discount_percent' => $this->toIntOrNull($low['cut'] ?? null),
-                'last_seen_at' => $low['timestamp'] ?? null,
-                'is_lowest_now' => null,
-            ];
-        }
-
-        // Case B) 이미 정규화된 형태
-        $amount = $this->toIntOrNull($historyLow['amount'] ?? $historyLow['price'] ?? null);
-        if ($amount === null) return null;
-
-        return [
-            'amount' => $amount,
-            'currency' => $historyLow['currency'] ?? null,
-            'discount_percent' => $this->toIntOrNull($historyLow['discountPercent'] ?? $historyLow['discount_percent'] ?? null),
-            'last_seen_at' => $historyLow['lastSeen'] ?? $historyLow['last_seen_at'] ?? $historyLow['lastSeenAt'] ?? null,
-            'is_lowest_now' => (bool)($historyLow['isLowest'] ?? $historyLow['is_lowest_now'] ?? false),
-        ];
     }
 
     private function toIntOrNull(mixed $v): ?int

@@ -9,8 +9,9 @@ use GuzzleHttp\Exception\GuzzleException;
 
 final class ItadClient
 {
-    private const string CACHE_PREFIX = 'itad:';
-    private const int DEFAULT_TIMEOUT_SEC = 10;
+    private const CACHE_PREFIX = 'itad:';
+    private const DEFAULT_TIMEOUT_SEC = 10;
+    private const HISTORY_TREND_CACHE_SEC = 60 * 30; // 30m
 
     public function __construct(
         private readonly ClientInterface $http,
@@ -214,80 +215,288 @@ final class ItadClient
         return null;
     }
 
-    /* =========================================================
-     * 3) History low (Optional 보강)
-     * ========================================================= */
-
     /**
-     * ITAD Game UUID -> History Low 조회
-     * - 없거나 실패하면 null
+     * ✅ 스토어(shops) 기준의 최저가 동향(all/y1/m3)을 응답용으로 정규화
+     *
+     * IMPORTANT
+     * - Prices v3의 historyLow는 "전체 스토어(ITAD 커버 범위)" 기준으로 내려올 수 있습니다.
+     *   (overview/v2 문서에도 historical low는 "among all covered shops"라고 명시)
+     * - 따라서 여기서는 아래 방식으로 "선택된 shops" 기준 트렌드를 만듭니다.
+     *   - all: /games/storelow/v2 (선택 shops의 storeLow)
+     *   - y1/m3: /games/history/v2 + since 필터로 로그를 받아 최소값 계산
+     *
+     * 실패 시 null
      */
-    public function getHistoryLow(string $itadGameId, string $country = 'KR'): ?array
-    {
+    public function getHistoryLowTrend(
+        string $itadGameId,
+        string $country = 'KR',
+        ?array $shopIds = null
+    ): ?array {
         $itadGameId = trim($itadGameId);
         if ($itadGameId === '') {
             return null;
         }
 
         $country = strtoupper(trim($country)) ?: 'KR';
+        $shopIds = $this->normalizeShopIds($shopIds);
 
-        $cacheKey = self::CACHE_PREFIX . "historylow:{$country}:{$itadGameId}";
+        $shopsKey = implode(',', $shopIds);
+        $cacheKey = self::CACHE_PREFIX . "historytrend:{$country}:{$shopsKey}:{$itadGameId}";
         $cached = $this->cacheGetJson($cacheKey);
         if ($cached !== null) {
             return ($cached === '__null__') ? null : $cached;
         }
 
-        $low = $this->tryHistoryLowBody($itadGameId, $country);
+        $all = $this->getStoreLowPrice($itadGameId, $country, $shopIds);
 
-        // history low는 덜 자주 바뀌니 1h
-        $this->cacheSetJson(
-            $cacheKey,
-            $low ?? '__null__',
-            60 * 60
-        );
+        // y1/m3는 history log에서 계산
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $sinceY1 = $now->sub(new \DateInterval('P1Y'))->format(DATE_ATOM);
+        $sinceM3 = $now->sub(new \DateInterval('P3M'))->format(DATE_ATOM);
 
-        return $low;
+        $y1 = $this->getLowestFromHistory($itadGameId, $country, $shopIds, $sinceY1);
+        $m3 = $this->getLowestFromHistory($itadGameId, $country, $shopIds, $sinceM3);
+
+        // 통화는 all -> y1 -> m3 순으로 추정
+        $currency = $all['currency'] ?? ($y1['currency'] ?? ($m3['currency'] ?? null));
+
+        $result = [
+            'all' => $all,
+            'y1'  => $y1,
+            'm3'  => $m3,
+            'currency' => $currency,
+            'shops' => $shopIds,
+            'source' => 'storelow+history_v2',
+        ];
+
+        // 30m 캐시
+        $this->cacheSetJson($cacheKey, $result, self::HISTORY_TREND_CACHE_SEC);
+        return $result;
     }
 
-    private function tryHistoryLowBody(string $itadGameId, string $country): ?array
+    /* =========================================================
+     * 3.1) Store-specific historical low helpers
+     * ========================================================= */
+
+    /**
+     * shops 파라미터 정규화
+     * - null이면 기본(steamShopId)
+     * - 빈 배열이면 기본(steamShopId)
+     * - 중복/비정상 값 제거
+     */
+    private function normalizeShopIds(?array $shopIds): array
     {
+        if (!is_array($shopIds) || $shopIds === []) {
+            return [$this->steamShopId];
+        }
+
+        $out = [];
+        foreach ($shopIds as $id) {
+            if (is_int($id) && $id > 0) {
+                $out[] = $id;
+            } elseif (is_string($id) && preg_match('/^\d+$/', $id)) {
+                $out[] = (int)$id;
+            }
+        }
+
+        $out = array_values(array_unique($out));
+        return $out !== [] ? $out : [$this->steamShopId];
+    }
+
+    /**
+     * /games/storelow/v2 에서 선택 shops의 all-time storeLow를 가져옴
+     * - 성공 시 price 객체( amount/amountInt/currency ) 반환
+     */
+    private function getStoreLowPrice(string $itadGameId, string $country, array $shopIds): ?array
+    {
+        $data = $this->getStoreLow($itadGameId, $country, $shopIds);
+        if (!is_array($data)) {
+            return null;
+        }
+
+        // 응답은 [ {id, lows:[{shop, price, ...}, ...]}, ... ] 형태로 문서화되어 있음
+        $row = null;
+        if (isset($data[0]) && is_array($data[0])) {
+            foreach ($data as $r) {
+                if (is_array($r) && (string)($r['id'] ?? '') === $itadGameId) {
+                    $row = $r;
+                    break;
+                }
+            }
+            $row ??= $data[0];
+        } elseif (isset($data['id']) && (string)$data['id'] === $itadGameId) {
+            $row = $data;
+        }
+
+        if (!is_array($row)) {
+            return null;
+        }
+
+        $lows = $row['lows'] ?? null;
+        if (!is_array($lows)) {
+            return null;
+        }
+
+        // 요청한 shops 중에서 첫 번째 일치하는 항목의 price 반환
+        foreach ($lows as $low) {
+            $shopId = $low['shop']['id'] ?? null;
+            if (is_int($shopId) && in_array($shopId, $shopIds, true)) {
+                $price = $low['price'] ?? null;
+                return is_array($price) ? $price : null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * /games/history/v2 에서 since 이후 로그를 가져와 최저 price를 계산
+     * - 반환: price 객체( amount/amountInt/currency )
+     */
+    private function getLowestFromHistory(string $itadGameId, string $country, array $shopIds, string $sinceIso): ?array
+    {
+        $rows = $this->getHistoryLog($itadGameId, $country, $shopIds, $sinceIso);
+        if (!is_array($rows) || $rows === []) {
+            return null;
+        }
+
+        $best = null;
+        $bestInt = null;
+
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $deal = $row['deal'] ?? null;
+            if (!is_array($deal)) {
+                continue;
+            }
+            $price = $deal['price'] ?? null;
+            if (!is_array($price)) {
+                continue;
+            }
+
+            $amountInt = $price['amountInt'] ?? null;
+            if (!is_int($amountInt)) {
+                // amountInt가 없으면 amount로 대체 (정밀도는 떨어질 수 있음)
+                $amount = $price['amount'] ?? null;
+                if (is_numeric($amount)) {
+                    $amountInt = (int)round(((float)$amount) * 100);
+                } else {
+                    continue;
+                }
+            }
+
+            if ($bestInt === null || $amountInt < $bestInt) {
+                $bestInt = $amountInt;
+                $best = $price;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * Store Low API
+     * POST /games/storelow/v2
+     * - query: country, shops
+     * - body: ["<uuid>"]
+     */
+    private function getStoreLow(string $itadGameId, string $country, array $shopIds): ?array
+    {
+        $shopsCsv = implode(',', $shopIds);
+
+        // Bearer 우선
         try {
             $res = $this->http->request(
                 'POST',
-                "{$this->apiBase}/games/history/low/v1",
+                "{$this->apiBase}/games/storelow/v2",
                 [
                     'headers' => $this->headers(),
-                    'json' => [
-                        'ids' => [$itadGameId],
+                    'query' => [
                         'country' => $country,
-                        'shops' => [$this->steamShopId],
+                        'shops' => $shopsCsv,
                     ],
+                    'json' => [$itadGameId],
                     'timeout' => self::DEFAULT_TIMEOUT_SEC,
                 ]
             );
+            return json_decode((string)$res->getBody(), true);
+        } catch (GuzzleException) {
+            // fallback
+        }
 
-            $data = json_decode((string)$res->getBody(), true);
-            return $this->extractHistoryLow($data, $itadGameId);
+        try {
+            $res = $this->http->request(
+                'POST',
+                "{$this->apiBase}/games/storelow/v2",
+                [
+                    'headers' => $this->headersWithoutAuth(),
+                    'query' => [
+                        'country' => $country,
+                        'shops' => $shopsCsv,
+                        'key' => $this->apiKey,
+                    ],
+                    'json' => [$itadGameId],
+                    'timeout' => self::DEFAULT_TIMEOUT_SEC,
+                ]
+            );
+            return json_decode((string)$res->getBody(), true);
         } catch (GuzzleException) {
             return null;
         }
     }
 
-    private function extractHistoryLow(array $data, string $itadGameId): ?array
+    /**
+     * History Log API
+     * GET /games/history/v2
+     * - query: id, country, shops, since
+     */
+    private function getHistoryLog(string $itadGameId, string $country, array $shopIds, string $sinceIso): ?array
     {
-        // 형태 A) map: { "<id>": {...} }
-        if (isset($data[$itadGameId]) && is_array($data[$itadGameId])) {
-            return $data[$itadGameId];
+        $shopsCsv = implode(',', $shopIds);
+
+        // Bearer 우선
+        try {
+            $res = $this->http->request(
+                'GET',
+                "{$this->apiBase}/games/history/v2",
+                [
+                    'headers' => $this->headers(),
+                    'query' => [
+                        'id' => $itadGameId,
+                        'country' => $country,
+                        'shops' => $shopsCsv,
+                        'since' => $sinceIso,
+                    ],
+                    'timeout' => self::DEFAULT_TIMEOUT_SEC,
+                ]
+            );
+            return json_decode((string)$res->getBody(), true);
+        } catch (GuzzleException) {
+            // fallback
         }
 
-        // 형태 B) list: [ { id: "...", low: {...}}, ... ]
-        foreach ($data as $row) {
-            if (is_array($row) && ($row['id'] ?? null) === $itadGameId) {
-                return $row;
-            }
+        try {
+            $res = $this->http->request(
+                'GET',
+                "{$this->apiBase}/games/history/v2",
+                [
+                    'headers' => $this->headersWithoutAuth(),
+                    'query' => [
+                        'id' => $itadGameId,
+                        'country' => $country,
+                        'shops' => $shopsCsv,
+                        'since' => $sinceIso,
+                        'key' => $this->apiKey,
+                    ],
+                    'timeout' => self::DEFAULT_TIMEOUT_SEC,
+                ]
+            );
+            return json_decode((string)$res->getBody(), true);
+        } catch (GuzzleException) {
+            return null;
         }
-
-        return null;
     }
 
     /* =========================================================
@@ -309,20 +518,6 @@ final class ItadClient
     }
 
     /**
-     * ✅ (신규) Steam AppID -> [itadId, overview, history_low]
-     */
-    public function getDealBySteamAppId(string $steamAppId, string $country = 'KR'): array
-    {
-        $itadId = $this->lookupSteamAppId($steamAppId);
-
-        return [
-            'itadId' => $itadId,
-            'overview' => $itadId ? $this->getOverview($itadId, $country) : null,
-            'history_low' => $itadId ? $this->getHistoryLow($itadId, $country) : null,
-        ];
-    }
-
-    /**
      * ✅ (신규) Steam SubID -> [itadId, overview, history_low]
      */
     public function getDealBySteamSubId(string $steamSubId, string $country = 'KR'): array
@@ -332,7 +527,7 @@ final class ItadClient
         return [
             'itadId' => $itadId,
             'overview' => $itadId ? $this->getOverview($itadId, $country) : null,
-            'history_low' => $itadId ? $this->getHistoryLow($itadId, $country) : null,
+            'history_low_trend' => $itadId ? $this->getHistoryLowTrend($itadId, $country) : null,
         ];
     }
 
@@ -349,7 +544,7 @@ final class ItadClient
         return [
             'itadId' => $itadId,
             'overview' => $itadId ? $this->getOverview($itadId, $country) : null,
-            'history_low' => $itadId ? $this->getHistoryLow($itadId, $country) : null,
+            'history_low_trend' => $itadId ? $this->getHistoryLowTrend($itadId, $country) : null,
         ];
     }
 
