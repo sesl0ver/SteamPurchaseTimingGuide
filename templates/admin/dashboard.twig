@@ -1,127 +1,142 @@
-<!doctype html>
-<html lang="ko">
-<head>
-    <meta charset="utf-8">
-    <meta http-equiv="refresh" content="60">
-    <title>Admin Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-900 text-gray-100 p-6 space-y-6">
+{% extends 'admin/layout.twig' %}
 
-<h1 class="text-2xl font-bold">📊 Admin Dashboard</h1>
+{% block title %}Admin · Dashboard{% endblock %}
+{% block header_title %}대시보드{% endblock %}
+{% block nav_dashboard_active %}bg-white/5 border border-white/10{% endblock %}
 
-<section>
-    <h2 class="font-semibold mb-2">DAU (최근 7일)</h2>
-    <div class="grid grid-cols-7 gap-2 text-sm">
-        {% for day, count in dau %}
-            <div class="bg-gray-800 rounded p-2 text-center">
-                <div class="text-xs text-gray-400">{{ day }}</div>
-                <div class="text-lg font-semibold">{{ count }}</div>
-            </div>
-        {% endfor %}
+{% block content %}
+
+{# KPI Row #}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  <div class="admin-card rounded-xl p-4">
+    <div class="text-xs admin-muted">오늘 DAU</div>
+    <div class="mt-1 text-2xl font-semibold">
+      {{ dau_delta.today }}
+      <span class="text-sm {{ dau_delta.delta >= 0 ? 'text-emerald-400' : 'text-rose-400' }}">
+        ({{ dau_delta.delta >= 0 ? '+' : '' }}{{ dau_delta.delta }})
+      </span>
     </div>
-</section>
+  </div>
 
-<section>
-    <h2 class="font-semibold mb-2">오늘 요약</h2>
-    <div class="grid grid-cols-2 gap-4 text-sm">
-        <div class="bg-gray-800 rounded p-3">
-            <div class="text-gray-400">DAU</div>
-            <div class="text-xl font-bold">
-                {{ dau_delta.today }}
-                <span class="{{ dau_delta.delta >= 0 ? 'text-green-400' : 'text-red-400' }}">
-          ({{ dau_delta.delta >= 0 ? '+' : '' }}{{ dau_delta.delta }})
-        </span>
-            </div>
-        </div>
-
-        <div class="bg-gray-800 rounded p-3">
-            <div class="text-gray-400">CCU</div>
-            <div class="text-xl font-bold">
-                {{ ccu_delta.current }}
-                <span class="{{ ccu_delta.delta >= 0 ? 'text-green-400' : 'text-red-400' }}">
-          ({{ ccu_delta.delta >= 0 ? '+' : '' }}{{ ccu_delta.delta }})
-        </span>
-            </div>
-        </div>
+  <div class="admin-card rounded-xl p-4">
+    <div class="text-xs admin-muted">현재 CCU</div>
+    <div class="mt-1 text-2xl font-semibold">
+      {{ ccu_delta.current }}
+      <span class="text-sm {{ ccu_delta.delta >= 0 ? 'text-emerald-400' : 'text-rose-400' }}">
+        ({{ ccu_delta.delta >= 0 ? '+' : '' }}{{ ccu_delta.delta }})
+      </span>
     </div>
-</section>
+  </div>
 
-<section>
-    <h2 class="font-semibold mb-2">CCU (최근 5분)</h2>
-    <div class="text-3xl font-bold">{{ ccu }}</div>
-</section>
+  <div class="admin-card rounded-xl p-4">
+    <div class="text-xs admin-muted">신규/재방문 (오늘)</div>
+    <div class="mt-2 text-sm">
+      <span class="text-emerald-300">신규 {{ new_vs_return.new }}</span>
+      <span class="mx-2 text-white/20">|</span>
+      <span class="text-sky-300">재방문 {{ new_vs_return.returning }}</span>
+      <div class="mt-1 text-xs admin-muted">총 {{ new_vs_return.total }}</div>
+    </div>
+  </div>
 
-<section>
-    <h2 class="font-semibold mb-2">Trending (7일)</h2>
-    <table class="w-full text-sm">
-        <thead>
-        <tr class="text-left text-gray-400">
-            <th>#</th><th>Kind</th><th>ID</th><th>제목</th><th>조회수</th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for item in trending %}
-            <tr class="border-t border-gray-800">
-                <td>{{ loop.index }}</td>
-                <td>{{ item.kind }}</td>
-                <td>{{ item.id }}</td>
-                <td>{{ item.title ?? '(unknown)' }}</td>
-                <td>{{ item.count }}</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-</section>
+  <div class="admin-card rounded-xl p-4">
+    <div class="text-xs admin-muted">D1 Retention</div>
+    <div class="mt-1 text-2xl font-semibold">{{ retention_d1.rate }}%</div>
+    <div class="mt-1 text-xs admin-muted">{{ retention_d1.cohort_day }} → {{ retention_d1.returned }}/{{ retention_d1.cohort_size }}</div>
+  </div>
+</div>
 
-<section>
-    <h2 class="font-semibold mb-2">트렌딩 집중도 (Top 5)</h2>
-    <ul class="text-sm space-y-1">
-        {% for item in trending_focus %}
-            <li>
-                #{{ item.rank }} {{ item.title ?? '(unknown)' }}
-                <span class="text-gray-400">— {{ item.ratio }}%</span>
-            </li>
-        {% else %}
-            <li class="text-gray-500">데이터 없음</li>
-        {% endfor %}
-    </ul>
-</section>
-
-
-<section>
-    <h2 class="font-semibold mb-2">Events (최근 3일)</h2>
-    {% for day, events in events %}
-        <div class="mb-2">
-            <div class="text-xs text-gray-400">{{ day }}</div>
-            <ul class="text-sm">
-                {% for name, cnt in events %}
-                    <li>{{ name }}: {{ cnt }}</li>
-                {% else %}
-                    <li class="text-gray-500">이벤트 없음</li>
-                {% endfor %}
-            </ul>
-        </div>
+{# DAU mini chart #}
+<section class="admin-card rounded-xl p-4">
+  <div class="flex items-end justify-between">
+    <div>
+      <div class="text-sm font-semibold">DAU (최근 7일)</div>
+      <div class="text-xs admin-muted">단순 추세 확인용</div>
+    </div>
+  </div>
+  <div class="mt-4 grid grid-cols-7 gap-2 text-sm">
+    {% for day, count in dau %}
+      <div class="rounded-lg border border-white/5 bg-white/[0.03] p-2 text-center">
+        <div class="text-[11px] admin-muted">{{ day }}</div>
+        <div class="text-lg font-semibold">{{ count }}</div>
+      </div>
     {% endfor %}
+  </div>
 </section>
 
-<section>
-    <h2 class="font-semibold mb-2">오늘 방문 구성</h2>
-    <div class="text-sm">
-        총 {{ new_vs_return.total }}명 중
-        <span class="text-green-400">신규 {{ new_vs_return.new }}</span>,
-        <span class="text-blue-400">재방문 {{ new_vs_return.returning }}</span>
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+  {# Trending #}
+  <section class="admin-card rounded-xl p-4">
+    <div class="flex items-end justify-between">
+      <div>
+        <div class="text-sm font-semibold">Trending (7일)</div>
+        <div class="text-xs admin-muted">조회 상위</div>
+      </div>
     </div>
-</section>
 
-<section>
-    <h2 class="font-semibold mb-2">D1 Retention</h2>
-    <p>
-        Cohort {{ retention_d1.cohort_day }} →
-        {{ retention_d1.returned }} / {{ retention_d1.cohort_size }}
-        ({{ retention_d1.rate }}%)
-    </p>
-</section>
+    <div class="mt-4 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-left text-xs admin-muted">
+          <tr>
+            <th class="py-2 pr-2">#</th>
+            <th class="py-2 pr-2">Kind</th>
+            <th class="py-2 pr-2">ID</th>
+            <th class="py-2 pr-2">제목</th>
+            <th class="py-2 text-right">조회수</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          {% for item in trending %}
+            <tr>
+              <td class="py-2 pr-2 text-xs admin-muted">{{ loop.index }}</td>
+              <td class="py-2 pr-2">{{ item.kind }}</td>
+              <td class="py-2 pr-2 font-mono text-xs">{{ item.id }}</td>
+              <td class="py-2 pr-2">{{ item.title ?? '(unknown)' }}</td>
+              <td class="py-2 text-right font-semibold">{{ item.count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-</body>
-</html>
+  {# Events + focus #}
+  <div class="space-y-6">
+    <section class="admin-card rounded-xl p-4">
+      <div class="text-sm font-semibold">트렌딩 집중도 (Top 5)</div>
+      <div class="text-xs admin-muted">Top5 비중</div>
+      <ul class="mt-3 space-y-2 text-sm">
+        {% for item in trending_focus %}
+          <li class="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2">
+            <span class="truncate">#{{ item.rank }} {{ item.title ?? '(unknown)' }}</span>
+            <span class="text-xs admin-muted shrink-0">{{ item.ratio }}%</span>
+          </li>
+        {% else %}
+          <li class="text-sm admin-muted">데이터 없음</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="admin-card rounded-xl p-4">
+      <div class="text-sm font-semibold">Events (최근 3일)</div>
+      <div class="mt-3 space-y-3">
+        {% for day, events in events %}
+          <div>
+            <div class="text-xs admin-muted">{{ day }}</div>
+            <ul class="mt-2 space-y-1 text-sm">
+              {% for name, cnt in events %}
+                <li class="flex items-center justify-between">
+                  <span class="truncate">{{ name }}</span>
+                  <span class="font-mono text-xs admin-muted">{{ cnt }}</span>
+                </li>
+              {% else %}
+                <li class="text-sm admin-muted">이벤트 없음</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+
+{% endblock %}

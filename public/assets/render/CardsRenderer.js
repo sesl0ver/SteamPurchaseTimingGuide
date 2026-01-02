@@ -233,6 +233,7 @@ export class CardsRenderer {
         const { steam, deal, meta } = payload;
         const kind = meta?.kind || "app";
         const steamItem = kind === "sub" ? steam?.sub : kind === "bundle" ? steam?.bundle : steam?.app;
+        const isComingSoon = Boolean(steamItem?.is_coming_soon);
 
         // -----------------------------
         // 구매 가능/불가 판정(안정화 버전 유지)
@@ -275,6 +276,10 @@ export class CardsRenderer {
             isPurchasableBySteamSignals &&
             (Number.isFinite(curAmount) ? curAmount === 0 : Number.isFinite(steamFinal) && steamFinal === 0);
 
+        // 출시 예정인 경우(coming soon)인데 가격이 0으로 들어오는 케이스가 있어,
+        // 무료 플레이로 오인되지 않도록 무료 판정은 coming soon보다 우선하지 않습니다.
+        const isFreeEffective = isFree && !isComingSoon;
+
         const currency = deal?.current?.currency || steamItem?.price?.currency || "KRW";
 
         // 한국어 패치
@@ -315,14 +320,16 @@ export class CardsRenderer {
                 "상태 확인 필요",
                 "가격/구매 가능 여부를 확정하기 어려워요. Steam 상점에서 구매 버튼 노출 여부를 확인해 주세요."
             );
-        } else if (isFree) {
+        } else if (isComingSoon) {
+            priceCard = this.createCard("현재 가격", "출시 예정", "아직 출시 전이라 가격/구매 정보가 확정되지 않았을 수 있습니다. Steam 상점에서 출시/구매 버튼 상태를 확인해 주세요.");
+        } else if (isFreeEffective) {
             priceCard = this.createCard("현재 가격", "무료 플레이", "지금 바로 추가 비용 없이 즐길 수 있습니다.", "tone-price-high");
         } else {
             const dp = Number(deal?.current?.discount_percent ?? steamItem?.price?.discount_percent ?? 0);
             const amount = deal?.current?.amount ?? steamItem?.price?.final;
             const regular = deal?.current?.regular_price ?? steamItem?.price?.regular;
 
-            const priceTone = this.#toneForPrice(dp, isUnavailable, isUnknownAvailability, isFree);
+            const priceTone = this.#toneForPrice(dp, isUnavailable, isUnknownAvailability, isFreeEffective);
 
             if (Number(dp) > 0 && amount != null && regular != null) {
                 priceCard = this.createCard(
@@ -396,7 +403,7 @@ export class CardsRenderer {
         const expiry = deal?.current?.expiry_at;
         const expiryK = expiry ? formatDate(expiry) : null;
 
-        const saleTone = this.#toneForSale(expiry, isUnavailable, isUnknownAvailability, isFree);
+        const saleTone = this.#toneForSale(expiry, isUnavailable, isUnknownAvailability, isFreeEffective);
 
         const saleCard = isUnavailable
             ? this.createCard(
@@ -410,9 +417,11 @@ export class CardsRenderer {
                     "상태 확인 필요",
                     "현재 구매 가능 여부를 확정하기 어려워요. Steam 상점에서 구매 버튼 노출 여부를 확인해 주세요."
                 )
-                : isFree
-                    ? this.createCard("구매 정보", "무료 플레이", "언제든지 플레이할 수 있습니다.")
-                    : this.createCard(
+                : isComingSoon
+                    ? this.createCard("구매 정보", "출시 예정", "아직 출시 전이라 구매할 수 없습니다. Steam 상점에서 출시 일정과 구매 가능 여부를 확인해 주세요.")
+                    : isFreeEffective
+                        ? this.createCard("구매 정보", "무료 플레이", "언제든지 플레이할 수 있습니다.")
+                        : this.createCard(
                         "할인 기간",
                         expiry ? "할인 진행 중" : "정보 없음",
                         expiryK ? `할인은 ${expiryK}까지입니다.` : "할인 종료 시점을 확인할 수 없습니다.",
@@ -608,7 +617,8 @@ export class CardsRenderer {
         const narrativeText = this.narrative.build({
             kind,
             isUnavailable,
-            isFree,
+            isComingSoon,
+            isFree: isFreeEffective,
             deal,
             steamItem,
             reviews: {
@@ -620,6 +630,6 @@ export class CardsRenderer {
         });
         this.narrative.set(narrativeText);
 
-        return { isFree, isUnavailable, kind, steamItem };
+        return { isFree: isFreeEffective, isComingSoon, isUnavailable, kind, steamItem };
     }
 }

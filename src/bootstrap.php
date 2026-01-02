@@ -22,6 +22,8 @@ use App\Middleware\ApiJsonResponseMiddleware;
 use App\Middleware\AdminGuardMiddleware;
 use App\Middleware\RateLimitMiddleware;
 use App\Middleware\AppIdCooldownMiddleware;
+use App\Controller\Admin\KoreanPatchController;
+use App\Controller\Admin\Api\CommunityKoreanPatchApiController;
 
 // Web(HTML)
 $app->get('/', PageController::class . ':home');
@@ -51,7 +53,20 @@ $app->post('/auth/withdraw', [AuthController::class, 'withdraw']);
 $app->post('/dashboard/wishlist/remove', [AuthController::class, 'removeWishlist']);
 
 $adminToken = (string)($_ENV['ADMIN_TOKEN'] ?? '');
-$app->get('/admin', DashboardController::class)->add(new AdminGuardMiddleware($_ENV['ADMIN_TOKEN'] ?? ''));
+
+// Admin(HTML)
+$app->group('/admin', function ($group) {
+    $group->get('', DashboardController::class);
+    $group->get('/korean-patch', [KoreanPatchController::class, 'page']);
+
+    // Admin API(JSON)
+    $group->group('/api', function ($api) {
+        $api->get('/korean-patch', [CommunityKoreanPatchApiController::class, 'list']);
+        $api->get('/korean-patch/{app_id:[0-9]+}', [CommunityKoreanPatchApiController::class, 'get']);
+        $api->post('/korean-patch', [CommunityKoreanPatchApiController::class, 'upsert']);
+        $api->delete('/korean-patch/{app_id:[0-9]+}', [CommunityKoreanPatchApiController::class, 'delete']);
+    })->add(new ApiJsonResponseMiddleware());
+})->add(new AdminGuardMiddleware($_ENV['ADMIN_TOKEN'] ?? ''));
 
 // API(JSON)
 $app->group('/api', function ($group) {

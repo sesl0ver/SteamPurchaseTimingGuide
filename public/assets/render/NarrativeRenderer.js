@@ -203,11 +203,15 @@ export class NarrativeRenderer {
      * - reviews: data.steam.reviews
      * - deal: data.deal
      */
-    build({ kind, isUnavailable, isFree, deal, steamItem, reviews, hasCommunityPatch }) {
+    build({ kind, isUnavailable, isComingSoon, isFree, deal, steamItem, reviews, hasCommunityPatch }) {
         const strong = (s) => `<strong>${escapeHtml(String(s ?? ""))}</strong>`;
 
         if (isUnavailable) {
             return `현재 Steam에서 ${strong("구매할 수 없는 상태")}입니다. 판매 종료 또는 지역 제한일 수 있으니 Steam 상점에서 상태를 확인해 주세요.`;
+        }
+
+        if (isComingSoon) {
+            return `현재 ${strong("출시 예정")}인 상품입니다. 출시 전에는 가격/구매 조건이 변동될 수 있으니 Steam 상점에서 출시 일정과 구매 가능 여부를 확인해 주세요.`;
         }
 
         if (isFree) {

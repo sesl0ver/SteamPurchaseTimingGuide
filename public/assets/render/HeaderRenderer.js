@@ -7,15 +7,17 @@ export class HeaderRenderer {
 
     render(meta, steamItem, flags) {
         const { kind, id, steam_url } = meta;
-        const { isFree, isUnavailable } = flags;
+        const { isFree, isUnavailable, isComingSoon } = flags;
 
         const title = steamItem.title ?? "제목 정보 없음";
         const img = steamItem.header_image ?? steamItem.page_image ?? "";
         const releaseDate = steamItem.release_date || "";
 
-        const badge = isFree
-            ? "🆓 무료 플레이"
-            : isUnavailable
+        const badge = isComingSoon
+            ? "⏳ 출시 예정"
+            : isFree
+                ? "🆓 무료 플레이"
+                : isUnavailable
                 ? "⛔ 현재 구매 불가"
                 : kind === "bundle"
                     ? "🎁 번들"

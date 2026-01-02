@@ -1,0 +1,119 @@
+{% extends 'admin/layout.twig' %}
+
+{% block title %}Admin · 한글패치 관리{% endblock %}
+{% block header_title %}한글패치 관리{% endblock %}
+{% block nav_kp_active %}bg-white/5 border border-white/10{% endblock %}
+
+{% block content %}
+
+<section class="admin-card rounded-xl p-4">
+  <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+    <div>
+      <div class="text-base font-semibold">커뮤니티 한글패치</div>
+      <div class="text-xs admin-muted">DB: public.community_korean_patch (검색: Steam AppID, 페이징 지원)</div>
+    </div>
+
+    <div class="flex gap-2">
+      <input
+        id="kpSearch"
+        type="text"
+        inputmode="numeric"
+        placeholder="Steam AppID 검색"
+        class="w-56 rounded-lg border border-white/10 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-white/20"
+      />
+      <button
+        id="kpSearchBtn"
+        class="rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2 text-sm hover:bg-white/[0.10]"
+      >검색</button>
+      <button
+        id="kpNewBtn"
+        class="rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-sm hover:bg-emerald-500/15"
+      >+ 신규 등록</button>
+    </div>
+  </div>
+</section>
+
+<section class="admin-card rounded-xl p-0 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-left text-xs admin-muted bg-white/[0.02]">
+        <tr>
+          <th class="py-3 px-4">AppID</th>
+          <th class="py-3 px-4">게임명</th>
+          <th class="py-3 px-4">내용</th>
+          <th class="py-3 px-4">링크 수</th>
+          <th class="py-3 px-4">업데이트</th>
+          <th class="py-3 px-4 text-right">작업</th>
+        </tr>
+      </thead>
+      <tbody id="kpTbody" class="divide-y divide-white/5">
+        <tr>
+          <td class="py-4 px-4 admin-muted" colspan="6">로딩 중…</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flex items-center justify-between px-4 py-3 border-t border-white/5 bg-white/[0.02]">
+    <div id="kpPagerInfo" class="text-xs admin-muted">-</div>
+    <div class="flex items-center gap-2">
+      <button id="kpPrev" class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm hover:bg-white/[0.08]">이전</button>
+      <div id="kpPageNav" class="flex items-center gap-1"></div>
+      <button id="kpNext" class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm hover:bg-white/[0.08]">다음</button>
+    </div>
+  </div>
+</section>
+
+{# Modal #}
+<div id="kpModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/60"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div class="admin-card w-full max-w-3xl rounded-2xl p-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <div id="kpModalTitle" class="text-base font-semibold">등록/수정</div>
+          <div class="text-xs admin-muted">Steam AppID는 여러 개를 한 번에 입력할 수 있습니다.</div>
+        </div>
+        <button id="kpModalClose" class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm hover:bg-white/[0.08]">닫기</button>
+      </div>
+
+      <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs admin-muted">Steam AppID (textarea)</label>
+          <textarea
+            id="kpAppIds"
+            rows="6"
+            class="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900 p-3 text-sm font-mono outline-none focus:border-white/20"
+            placeholder="예) 2638890\n570\n730"
+          ></textarea>
+          <div class="mt-2 text-[11px] admin-muted">쉼표/공백/줄바꿈 모두 구분자로 인식합니다.</div>
+        </div>
+
+        <div>
+          <label class="text-xs admin-muted">patch_text</label>
+          <textarea
+            id="kpPatchText"
+            rows="6"
+            class="mt-2 w-full rounded-xl border border-white/10 bg-neutral-900 p-3 text-sm outline-none focus:border-white/20"
+            placeholder="URL | 설명\n추가 설명은 다음 줄에 이어서 작성 가능"
+          ></textarea>
+          <div class="mt-2 text-[11px] admin-muted">포맷: 한 줄에 1 링크 (URL | 설명). 다음 줄에 설명을 이어서 적어도 됩니다.</div>
+        </div>
+      </div>
+
+      <div class="mt-4 flex items-center justify-between">
+        <div id="kpModalHint" class="text-xs admin-muted"></div>
+        <div class="flex gap-2">
+          <button id="kpModalDelete" class="hidden rounded-lg border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-sm hover:bg-rose-500/15">삭제</button>
+          <button id="kpModalSave" class="rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-sm hover:bg-emerald-500/15">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+  <script src="/assets/admin-korean-patch.js"></script>
+{% endblock %}

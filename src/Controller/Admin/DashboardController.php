@@ -17,7 +17,9 @@ final class DashboardController
 
     public function __invoke(ServerRequestInterface $req, ResponseInterface $res): ResponseInterface
     {
+        $token = (string)($req->getQueryParams()['token'] ?? '');
         return $this->view->render($res, 'admin/dashboard.twig', [
+            'admin_token' => $token,
             'dau' => $this->stats->getDau(7),
             'ccu' => $this->stats->getRecentCcu(5),
             'trending' => $this->stats->getTrending(7, 20),

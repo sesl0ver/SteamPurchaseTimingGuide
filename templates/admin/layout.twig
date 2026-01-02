@@ -1,0 +1,73 @@
+{# templates/admin/layout.twig #}
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Admin{% endblock %}</title>
+
+  {# 서비스 CSS 번들 재사용 (Tailwind 포함) #}
+  <link rel="stylesheet" href="/assets/app.min.css" />
+
+  <style>
+    /* Admin 전용: GM툴 느낌의 살짝 다른 배경/카드 */
+    .admin-card{background:rgba(50,50,50,1);border:1px solid rgba(0,0,0,1);}
+    .admin-muted{color:rgba(255,255,255,1);}
+  </style>
+</head>
+<body class="min-h-dvh bg-neutral-950 text-neutral-100">
+
+{# 토큰을 링크/JS에서 재사용 #}
+<script>
+  window.__ADMIN_TOKEN = {{ admin_token is defined ? admin_token|json_encode|raw : '""' }};
+  window.__ADMIN_TOKEN_QS = window.__ADMIN_TOKEN ? ('token=' + encodeURIComponent(window.__ADMIN_TOKEN)) : '';
+</script>
+
+<div class="min-h-dvh flex">
+  {# Sidebar #}
+  <aside class="w-64 shrink-0 border-r border-white/5 bg-neutral-950/60 backdrop-blur">
+    <div class="px-4 py-4 border-b border-white/5">
+      <div class="text-sm admin-muted">GM Tool</div>
+      <div class="text-lg font-semibold tracking-tight">Coterie Admin</div>
+    </div>
+
+    <nav class="p-2 space-y-1 text-sm">
+      <a
+        href="/admin{% if admin_token %}?token={{ admin_token|url_encode }}{% endif %}"
+        class="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-white/5 {% block nav_dashboard_active %}{% endblock %}"
+      >
+        <span class="opacity-80">📊</span>
+        <span>대시보드</span>
+      </a>
+
+      <a
+        href="/admin/korean-patch{% if admin_token %}?token={{ admin_token|url_encode }}{% endif %}"
+        class="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-white/5 {% block nav_kp_active %}{% endblock %}"
+      >
+        <span class="opacity-80">🈁</span>
+        <span>한글패치 관리</span>
+      </a>
+    </nav>
+
+    <div class="mt-auto p-4 text-xs admin-muted border-t border-white/5">
+      <div>토큰은 URL 쿼리 또는 헤더로 전달됩니다.</div>
+    </div>
+  </aside>
+
+  {# Main #}
+  <div class="flex-1 min-w-0">
+    <header class="h-14 flex items-center justify-between px-6 border-b border-white/5 bg-neutral-950/40 backdrop-blur">
+      <div class="font-medium tracking-tight">{% block header_title %}Admin{% endblock %}</div>
+      <div class="text-xs admin-muted">{{ "now"|date("Y-m-d H:i") }}</div>
+    </header>
+
+    <main class="p-6 space-y-6">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>
