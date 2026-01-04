@@ -31,6 +31,12 @@ use GuzzleHttp\ClientInterface;
 use App\Controller\Api\WishlistController;
 use App\Controller\Api\RecentLookupController;
 use App\Controller\AuthController;
+use App\Controller\Admin\DashboardController;
+use App\Controller\Admin\KoreanPatchController;
+use App\Controller\Admin\UserController;
+use App\Controller\Admin\Api\UserApiController;
+use App\Controller\Admin\Api\CommunityKoreanPatchApiController;
+use App\Service\AdminStatsService;
 
 $dotenv = Dotenv::createImmutable(dirname(__DIR__));
 $dotenv->load();
@@ -191,6 +197,33 @@ $container->set(App\Service\AbuseGuard::class,
 $container->set(App\Service\StatsTracker::class,
     fn($c) => new App\Service\StatsTracker($c->get(Redis::class))
 );
+
+$container->set(AdminStatsService::class, function ($c) {
+    return new AdminStatsService($c->get(\Redis::class));
+});
+
+$container->set(DashboardController::class, function ($c) {
+    return new DashboardController(
+        $c->get(Twig::class),
+        $c->get(AdminStatsService::class)
+    );
+});
+
+$container->set(KoreanPatchController::class, function ($c) {
+    return new KoreanPatchController($c->get(Twig::class));
+});
+
+$container->set(UserController::class, function ($c) {
+    return new UserController($c->get(Twig::class));
+});
+
+$container->set(UserApiController::class, function ($c) {
+    return new UserApiController($c->get(UserRepository::class));
+});
+
+$container->set(CommunityKoreanPatchApiController::class, function ($c) {
+    return new CommunityKoreanPatchApiController($c->get(CommunityKoreanPatchRepository::class));
+});
 
 // Slim에 컨테이너 설정
 AppFactory::setContainer($container);

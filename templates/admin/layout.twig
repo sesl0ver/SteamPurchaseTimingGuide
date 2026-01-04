@@ -47,6 +47,14 @@
         <span class="opacity-80">🈁</span>
         <span>한글패치 관리</span>
       </a>
+
+      <a
+        href="/admin/user{% if admin_token %}?token={{ admin_token|url_encode }}{% endif %}"
+        class="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-white/5 {% block nav_user_active %}{% endblock %}"
+      >
+        <span class="opacity-80">👥</span>
+        <span>회원 관리</span>
+      </a>
     </nav>
 
     <div class="mt-auto p-4 text-xs admin-muted border-t border-white/5">

@@ -23,7 +23,9 @@ use App\Middleware\AdminGuardMiddleware;
 use App\Middleware\RateLimitMiddleware;
 use App\Middleware\AppIdCooldownMiddleware;
 use App\Controller\Admin\KoreanPatchController;
+use App\Controller\Admin\UserController;
 use App\Controller\Admin\Api\CommunityKoreanPatchApiController;
+use App\Controller\Admin\Api\UserApiController;
 
 // Web(HTML)
 $app->get('/', PageController::class . ':home');
@@ -58,6 +60,7 @@ $adminToken = (string)($_ENV['ADMIN_TOKEN'] ?? '');
 $app->group('/admin', function ($group) {
     $group->get('', DashboardController::class);
     $group->get('/korean-patch', [KoreanPatchController::class, 'page']);
+    $group->get('/user', [UserController::class, 'page']);
 
     // Admin API(JSON)
     $group->group('/api', function ($api) {
@@ -65,6 +68,10 @@ $app->group('/admin', function ($group) {
         $api->get('/korean-patch/{app_id:[0-9]+}', [CommunityKoreanPatchApiController::class, 'get']);
         $api->post('/korean-patch', [CommunityKoreanPatchApiController::class, 'upsert']);
         $api->delete('/korean-patch/{app_id:[0-9]+}', [CommunityKoreanPatchApiController::class, 'delete']);
+
+        // User Management API
+        $api->get('/user', [UserApiController::class, 'list']);
+        $api->delete('/user/{id:[0-9]+}', [UserApiController::class, 'delete']);
     })->add(new ApiJsonResponseMiddleware());
 })->add(new AdminGuardMiddleware($_ENV['ADMIN_TOKEN'] ?? ''));
 

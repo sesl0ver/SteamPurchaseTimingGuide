@@ -78,6 +78,102 @@ SQL;
         $stmt = $this->pdo->prepare('SELECT * FROM users WHERE steam_id = :steam_id LIMIT 1');
         $stmt->execute([':steam_id' => $steamId]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $row['id'] = (string)$row['id'];
+            $row['steam_id'] = (string)$row['steam_id'];
+        }
         return $row ?: null;
+    }
+
+    /**
+     * 관리자용: 사용자 목록 페이징 조회
+     */
+    public function listPaged(int $page, int $perPage, ?string $query = null): array
+    {
+        $offset = ($page - 1) * $perPage;
+        $whereSql = '';
+        $params = [];
+
+        if ($query !== null && $query !== '') {
+            $params[':q1'] = "%$query%";
+            if (ctype_digit($query)) {
+                $whereSql = "WHERE persona_name ILIKE :q1 OR steam_id = :q2";
+                $params[':q2'] = $query;
+            } else {
+                $whereSql = "WHERE persona_name ILIKE :q1";
+            }
+        }
+
+        $sql = "SELECT * FROM users {$whereSql} ORDER BY last_login_at DESC LIMIT :limit OFFSET :offset";
+        $stmt = $this->pdo->prepare($sql);
+
+        foreach ($params as $key => $val) {
+            $stmt->bindValue($key, $val, PDO::PARAM_STR);
+        }
+        $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+
+        $stmt->execute();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $items = [];
+        foreach ($rows as $row) {
+            $row['id'] = (string)$row['id'];
+            $row['steam_id'] = (string)$row['steam_id'];
+            $items[] = $row;
+        }
+
+        $total = $this->countAll($query);
+
+        return [
+            'items' => $items,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+            'total_pages' => (int)ceil($total / max(1, $perPage)),
+        ];
+    }
+
+    /**
+     * 관리자용: 전체 사용자 수 계산
+     */
+    public function countAll(?string $query = null): int
+    {
+        $whereSql = '';
+        $params = [];
+
+        if ($query !== null && $query !== '') {
+            $params[':q1'] = "%$query%";
+            if (ctype_digit($query)) {
+                $whereSql = "WHERE persona_name ILIKE :q1 OR steam_id = :q2";
+                $params[':q2'] = $query;
+            } else {
+                $whereSql = "WHERE persona_name ILIKE :q1";
+            }
+        }
+
+        $sql = "SELECT COUNT(*) FROM users {$whereSql}";
+        $stmt = $this->pdo->prepare($sql);
+
+        foreach ($params as $key => $val) {
+            $stmt->bindValue($key, $val, PDO::PARAM_STR);
+        }
+
+        $stmt->execute();
+
+        return (int)$stmt->fetchColumn();
+    }
+
+    /**
+     * 관리자용: 사용자 삭제 (ID 기준)
+     * id는 bigint이므로 string으로 처리하는 것이 오버플로우 방지에 안전합니다.
+     */
+    public function deleteById(string|int $id): bool
+    {
+        // 찜 목록 등 연관 데이터는 FK ON DELETE CASCADE가 설정되어 있다고 가정하거나,
+        // 필요 시 여기서 명시적으로 삭제 로직을 추가할 수 있습니다.
+        // AuthController::withdraw 참고 시 찜 목록을 먼저 지우는 로직이 있음.
+        $stmt = $this->pdo->prepare('DELETE FROM users WHERE id = :id');
+        $stmt->bindValue(':id', $id, is_int($id) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        return $stmt->execute();
     }
 }

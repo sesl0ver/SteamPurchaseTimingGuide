@@ -1,0 +1,66 @@
+{% extends 'admin/layout.twig' %}
+
+{% block title %}Admin · 회원 관리{% endblock %}
+{% block header_title %}회원 관리{% endblock %}
+{% block nav_user_active %}bg-white/5 border border-white/10{% endblock %}
+
+{% block content %}
+
+<section class="admin-card rounded-xl p-4">
+  <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+    <div>
+      <div class="text-base font-semibold">회원 관리</div>
+      <div class="text-xs admin-muted">DB: public.users (검색: SteamID, 닉네임)</div>
+    </div>
+
+    <div class="flex gap-2">
+      <input
+        id="userSearch"
+        type="text"
+        placeholder="SteamID 또는 닉네임 검색"
+        class="w-64 rounded-lg border border-white/10 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-white/20"
+      />
+      <button
+        id="userSearchBtn"
+        class="rounded-lg border border-white/10 bg-white/[0.06] px-3 py-2 text-sm hover:bg-white/[0.10]"
+      >검색</button>
+    </div>
+  </div>
+</section>
+
+<section class="admin-card rounded-xl p-0 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="text-left text-xs admin-muted bg-white/[0.02]">
+        <tr>
+          <th class="py-3 px-4 w-16">ID</th>
+          <th class="py-3 px-4">사용자</th>
+          <th class="py-3 px-4">SteamID</th>
+          <th class="py-3 px-4">가입일</th>
+          <th class="py-3 px-4">최근 로그인</th>
+          <th class="py-3 px-4 text-right">작업</th>
+        </tr>
+      </thead>
+      <tbody id="userTbody" class="divide-y divide-white/5">
+        <tr>
+          <td class="py-4 px-4 admin-muted" colspan="7">로딩 중…</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flex items-center justify-between px-4 py-3 border-t border-white/5 bg-white/[0.02]">
+    <div id="userPagerInfo" class="text-xs admin-muted">-</div>
+    <div class="flex items-center gap-2">
+      <button id="userPrev" class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm hover:bg-white/[0.08]">이전</button>
+      <div id="userPageNav" class="flex items-center gap-1"></div>
+      <button id="userNext" class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm hover:bg-white/[0.08]">다음</button>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+  <script src="/assets/admin-user.js"></script>
+{% endblock %}
