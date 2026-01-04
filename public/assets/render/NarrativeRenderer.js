@@ -173,38 +173,39 @@ export class NarrativeRenderer {
 
     /**
      * build 입력은 기존 호출부 호환을 유지합니다.
-     * - steamItem: data.steam.app
-     * - reviews: data.steam.reviews
-     * - deal: data.deal
      */
-    build({ kind, isUnavailable, isComingSoon, isFree, deal, steamItem, reviews, hasCommunityPatch }) {
-        const strong = (s) => `<strong>${escapeHtml(String(s ?? ""))}</strong>`;
+    build(params) {
+        const { isUnavailable, isComingSoon, isFree } = params;
 
         if (isUnavailable) {
-            return `현재 Steam에서 ${strong("구매할 수 없는 상태")}입니다. 판매 종료 또는 지역 제한일 수 있으니 Steam 상점에서 상태를 확인해 주세요.`;
+            return `현재 Steam에서 <strong>구매할 수 없는 상태</strong>입니다. 판매 종료 또는 지역 제한일 수 있으니 Steam 상점에서 상태를 확인해 주세요.`;
         }
-
         if (isComingSoon) {
-            return `현재 ${strong("출시 예정")}인 상품입니다. 출시 전에는 가격/구매 조건이 변동될 수 있으니 Steam 상점에서 출시 일정과 구매 가능 여부를 확인해 주세요.`;
+            return `현재 <strong>출시 예정</strong>인 상품입니다. 출시 전에는 가격/구매 조건이 변동될 수 있으니 Steam 상점에서 출시 일정과 구매 가능 여부를 확인해 주세요.`;
         }
-
         if (isFree) {
-            return `현재 ${strong("무료로 플레이")}할 수 있는 상품입니다. 구성과 조건은 Steam 상점에서 확인해 주세요.`;
+            return `현재 <strong>무료로 플레이</strong>할 수 있는 상품입니다. 구성과 조건은 Steam 상점에서 확인해 주세요.`;
         }
 
-        /** @type {{category: 'consider'|'info'|'caution', weight:number, text:string, key?:string}[]} */
+        const ctx = this.#prepareContext(params);
         const items = [];
-        const seen = new Set();
-        const push = (category, weight, text, key) => {
-            const t = String(text || "").trim();
-            if (!t) return;
-            const k = key || `${category}:${t}`;
-            if (seen.has(k)) return;
-            seen.add(k);
-            items.push({ category, weight, text: t, key: k });
-        };
 
-        // ---------------- 데이터 취합(스키마 우선) ----------------
+        this.#analyzePrice(ctx, items);
+        this.#analyzeRelease(ctx, items);
+        this.#analyzeLanguage(ctx, items);
+        this.#analyzeGenre(ctx, items);
+        this.#analyzeReviews(ctx, items);
+        this.#analyzeOptions(ctx, items);
+        this.#analyzeDlc(ctx, items);
+        this.#analyzeAchievements(ctx, items);
+        this.#analyzeExpiry(ctx, items);
+
+        return this.#renderNarrative(items, ctx);
+    }
+
+    #prepareContext(params) {
+        const { kind, deal, steamItem, reviews, hasCommunityPatch } = params;
+
         const price = steamItem?.price || {};
         const steamRegular = Number(price?.regular);
         const steamFinal = Number(price?.final);
@@ -212,28 +213,21 @@ export class NarrativeRenderer {
 
         const curDp = Number.isFinite(Number(deal?.current?.discount_percent))
             ? Number(deal.current.discount_percent)
-            : Number.isFinite(steamDp)
-                ? steamDp
-                : 0;
+            : Number.isFinite(steamDp) ? steamDp : 0;
 
         const currentAmount = Number.isFinite(Number(deal?.current?.amount))
             ? Number(deal.current.amount)
-            : Number.isFinite(steamFinal)
-                ? steamFinal
-                : null;
+            : Number.isFinite(steamFinal) ? steamFinal : null;
 
         const listPrice = Number.isFinite(Number(deal?.current?.regular_price))
             ? Number(deal.current.regular_price)
-            : Number.isFinite(steamRegular)
-                ? steamRegular
-                : null;
+            : Number.isFinite(steamRegular) ? steamRegular : null;
 
         const lowInfo = deal?.historical_low;
         const allTimeLow = Number.isFinite(Number(lowInfo?.amount)) ? Number(lowInfo.amount) : null;
         const lowWasNow = !!lowInfo?.is_lowest_now;
         const lowDp = Number.isFinite(Number(lowInfo?.discount_percent)) ? Number(lowInfo.discount_percent) : null;
 
-        // ATL 근접도(할인율 기준)
         let lowCloseness = null;
         if (!lowWasNow && lowDp != null) {
             const diff = Math.abs(lowDp - curDp);
@@ -243,383 +237,270 @@ export class NarrativeRenderer {
         }
 
         const hasRealDiscountHistory =
-            listPrice != null &&
-            allTimeLow != null &&
-            listPrice > 0 &&
-            allTimeLow > 0 &&
-            allTimeLow < listPrice;
+            listPrice != null && allTimeLow != null &&
+            listPrice > 0 && allTimeLow > 0 && allTimeLow < listPrice;
 
         const allTimeLowEqualsList =
-            listPrice != null &&
-            allTimeLow != null &&
-            listPrice > 0 &&
-            allTimeLow > 0 &&
-            allTimeLow === listPrice;
+            listPrice != null && allTimeLow != null &&
+            listPrice > 0 && allTimeLow > 0 && allTimeLow === listPrice;
 
-        // ---------------- (1) 가격/할인/이력 ----------------
-        const meaningfulDiscountThreshold = 20;
-        const comfortableDiscountThreshold = 30;
+        return {
+            kind, deal, steamItem, reviews, hasCommunityPatch,
+            curDp, currentAmount, listPrice,
+            lowInfo, allTimeLow, lowWasNow, lowDp, lowCloseness,
+            hasRealDiscountHistory, allTimeLowEqualsList
+        };
+    }
 
-        const isMeaningfulDiscount = curDp >= meaningfulDiscountThreshold;
+    #pushItem(items, category, weight, text, key) {
+        const t = String(text || "").trim();
+        if (!t) return;
+        const k = key || `${category}:${t}`;
+        // 중복 방지는 build 레벨에서 Set으로 관리해도 되지만 간단히 items 배열 확인
+        if (items.some(it => it.key === k)) return;
+        items.push({ category, weight, text: t, key: k });
+    }
+
+    #strong(s) {
+        return `<strong>${escapeHtml(String(s ?? ""))}</strong>`;
+    }
+
+    #analyzePrice(ctx, items) {
+        const { curDp, lowWasNow, lowCloseness, allTimeLow, lowInfo, hasRealDiscountHistory, allTimeLowEqualsList, listPrice, currentAmount } = ctx;
 
         if (curDp > 0) {
-            // 할인 중
             if (lowWasNow) {
-                push("consider", 95, `현재 할인은 ${strong("역대 최저가")}에 해당합니다.`, "price:atl_now");
+                this.#pushItem(items, "consider", 95, `현재 할인은 ${this.#strong("역대 최저가")}와 동일한 수준입니다.`, "price:atl_now");
             } else if (lowCloseness === "same") {
-                push("consider", 85, `현재 할인 조건은 과거 최저가와 ${strong("같은 수준")}입니다.`, "price:atl_same");
+                this.#pushItem(items, "consider", 85, `현재 할인 조건은 과거 최저가와 ${this.#strong("같은 수준")}을 유지하고 있습니다.`, "price:atl_same");
             } else if (lowCloseness === "near") {
-                push("consider", 80, `현재 할인 조건은 과거 최저가와 ${strong("큰 차이 없는")} 편입니다.`, "price:atl_near");
+                this.#pushItem(items, "consider", 80, `현재 가격은 과거 최저가와 ${this.#strong("큰 차이 없는")} 합리적인 수준입니다.`, "price:atl_near");
             } else if (lowCloseness === "far") {
-                push("info", 60, `현재도 할인 중이지만, 과거 최저가 대비 ${strong("차이가 있는")} 편입니다.`, "price:atl_far");
+                this.#pushItem(items, "info", 60, `현재도 할인 중이지만, 과거 최저가 대비 ${this.#strong("차이가 있는")} 편입니다.`, "price:atl_far");
             } else if (allTimeLow != null) {
                 const ago = humanizeAgo(lowInfo?.last_seen_at);
-                push(
-                    "info",
-                    65,
-                    `현재는 할인 중이며, 과거 최저가 이력${ago ? `(${escapeHtml(ago)})` : ""}이 확인됩니다.`,
-                    "price:atl_exists"
-                );
+                this.#pushItem(items, "info", 65, `현재 할인 중이며, 과거 최저가 기록${ago ? `(${escapeHtml(ago)})` : ""}이 확인됩니다.`, "price:atl_exists");
             } else {
-                push(
-                    "info",
-                    55,
-                    `현재는 할인 중이지만, 가격 이력이 충분하지 않아 과거 기준 비교는 제한될 수 있습니다.`,
-                    "price:history_limited"
-                );
+                this.#pushItem(items, "info", 55, `현재 할인 중이지만, 가격 이력이 충분하지 않아 과거 기준 비교는 제한적일 수 있습니다.`, "price:history_limited");
             }
 
-            // 할인폭: 정보성 안내(판단 아님) — 세분화
-            // 표시/판단 기준을 curDp로 통일(steamDp는 NaN/불일치 가능)
-            const dpText = Number.isFinite(curDp) ? `${curDp}%` : null;
-
+            const dpText = `${curDp}%`;
             if (curDp >= 75) {
-                push(
-                    "consider",
-                    75,
-                    `할인율이 ${strong(dpText)}로 ${strong("매우 큰 편")}입니다.`,
-                    "price:dp_75_up"
-                );
+                this.#pushItem(items, "consider", 75, `할인율이 ${this.#strong(dpText)}로 매우 높으며, 정가 대비 가격 부담이 ${this.#strong("크게 낮아진")} 상태입니다.`, "price:dp_75_up");
             } else if (curDp > 50) {
-                push(
-                    "consider",
-                    70,
-                    `할인율이 ${strong(dpText)}로 ${strong("체감될 정도로 큰 편")}입니다.`,
-                    "price:dp_over_50"
-                );
+                this.#pushItem(items, "consider", 70, `할인율이 ${this.#strong(dpText)}로 정가 대비 ${this.#strong("체감될 정도로 큰")} 할인 폭을 보여줍니다.`, "price:dp_over_50");
             } else if (curDp === 50) {
-                push(
-                    "consider",
-                    65,
-                    `할인율이 ${strong("50%")}로, ${strong("정가 대비 절반 가격")}입니다.`,
-                    "price:dp_50"
-                );
+                this.#pushItem(items, "consider", 65, `할인율이 ${this.#strong("50%")}로, 현재 ${this.#strong("정가 대비 반값")}에 구매 가능합니다.`, "price:dp_50");
             } else if (curDp > 30) {
-                push(
-                    "consider",
-                    60,
-                    `할인율이 ${strong(dpText)}로 ${strong("의미 있는 할인")}으로 볼 수 있습니다.`,
-                    "price:dp_under_50_over_30"
-                );
+                this.#pushItem(items, "consider", 60, `할인율이 ${this.#strong(dpText)}로 ${this.#strong("의미 있는 수준의 할인")}이 진행 중입니다.`, "price:dp_under_50_over_30");
             } else if (curDp > 10) {
-                push(
-                    "info",
-                    50,
-                    `현재 ${strong("할인 중")}이지만, 할인 폭은 ${strong(dpText)}로 비교적 ${strong("가벼운 편")}입니다.`,
-                    "price:dp_30_down"
-                );
-            } else if (curDp > 0) {
-                push(
-                    "info",
-                    45,
-                    `할인율이 ${strong(dpText)}로 ${strong("크진 않은 편")}입니다.`,
-                    "price:dp_10_down"
-                );
+                this.#pushItem(items, "info", 50, `현재 ${this.#strong("할인 중")}이지만, 할인 폭은 ${this.#strong(dpText)}로 비교적 가벼운 편입니다.`, "price:dp_30_down");
+            } else {
+                this.#pushItem(items, "info", 45, `할인율이 ${this.#strong(dpText)}로 아직은 할인 폭이 크지 않은 단계입니다.`, "price:dp_10_down");
             }
 
-            // 정가가 높은 편이면 체감 안내
             if (listPrice != null && currentAmount != null) {
                 if (listPrice >= 80000 && currentAmount >= 50000) {
-                    push(
-                        "info",
-                        35,
-                        `정가가 높은 편이라 할인 적용 후에도 체감 가격이 높게 느껴질 수 있습니다.`,
-                        "price:high_list"
-                    );
+                    this.#pushItem(items, "info", 35, `기본 정가가 다소 높게 책정되어 있어, 할인 적용 후에도 실제 지불 가격이 높게 느껴질 수 있습니다.`, "price:high_list");
                 }
-
-                // 저가(인디) 게임 안내 추가
                 if (listPrice > 0 && listPrice <= 20000) {
-                    push(
-                        "info",
-                        28,
-                        `정가가 비교적 낮은 편이라, 할인율뿐 아니라 실제로 얼마나 할인하는지 함께 확인해보세요.`,
-                        "price:low_list"
-                    );
+                    this.#pushItem(items, "info", 28, `기본 정가가 낮은 편이라, 할인율보다는 실제 할인된 절대 금액을 함께 고려해 보세요.`, "price:low_list");
                 }
             }
         } else {
-            // 정가
             if (allTimeLowEqualsList) {
-                push("info", 65, `현재까지 정가로만 판매된 상품입니다. 과거에도 정가보다 낮은 기록은 없습니다.`, "price:no_sale_ever");
+                this.#pushItem(items, "info", 65, `현재까지 정가로만 판매된 상품으로, 과거에도 정가보다 낮은 가격에 판매된 기록이 없습니다.`, "price:no_sale_ever");
             } else if (hasRealDiscountHistory) {
-                push("info", 60, `현재는 ${strong("할인 없이 정가")}로 판매 중이며, 과거 할인 판매 이력이 있습니다.`, "price:now_full_past_sale");
+                this.#pushItem(items, "info", 60, `현재는 ${this.#strong("할인 없는 정가")} 상태이며, 과거에 할인 판매되었던 기록이 존재합니다.`, "price:now_full_past_sale");
             } else if (allTimeLow != null) {
-                push("info", 55, `현재는 정가로 판매 중이며, 가격 이력은 존재하나 할인 판매 기록은 확정하기 어렵습니다.`, "price:history_unclear");
+                this.#pushItem(items, "info", 55, `현재 정가로 판매 중입니다. 가격 이력은 존재하나 구체적인 할인 기록은 확정하기 어렵습니다.`, "price:history_unclear");
             } else {
-                push("info", 50, `현재는 ${strong("할인 없이 정가")}로 판매 중입니다.`, "price:now_full");
+                this.#pushItem(items, "info", 50, `현재 ${this.#strong("할인 없는 정가")}로 판매 중입니다.`, "price:now_full");
             }
-
-            push("caution", 45, `다음 할인 시점은 확정하기 어렵기 때문에, 플레이 계획에 따라 판단이 달라질 수 있습니다.`, "price:wait_uncertain");
+            this.#pushItem(items, "caution", 45, `다음 할인 시점을 예측하기 어려우므로, 당장 플레이할 계획이 아니라면 기다려보는 것도 방법입니다.`, "price:wait_uncertain");
         }
+    }
 
-        // ---------------- (2) 출시 시점 ----------------
+    #analyzeRelease(ctx, items) {
+        const { steamItem, curDp } = ctx;
         const releaseDateRaw = steamItem?.release_date ?? null;
         const releasedAt = this.#parseReleaseDate(releaseDateRaw);
         if (releasedAt) {
             const diffDays = (Date.now() - releasedAt.getTime()) / 86400000;
             if (diffDays >= 0 && diffDays <= 90) {
                 const days = Math.floor(diffDays);
-                push(
-                    "info",
-                    40,
-                    curDp > 0
-                        ? `출시 후 ${days}일 정도 지난 시점에 진행 중인 할인입니다.`
-                        : `출시 후 ${days}일 정도 지난 작품으로, 현재는 정가로 판매 중입니다.`,
-                    "release:recent"
-                );
+                const text = curDp > 0
+                    ? `출시 후 약 ${days}일 만에 진행되는 초기 할인입니다.`
+                    : `출시된 지 약 ${days}일 정도 지난 신작이며, 현재는 정가로 판매 중입니다.`;
+                this.#pushItem(items, "info", 40, text, "release:recent");
             } else if (diffDays >= 365 * 2) {
-                push(
-                    "info",
-                    30,
-                    curDp > 0
-                        ? `출시 후 시간이 충분히 지난 작품에 적용된 할인입니다.`
-                        : `출시된 지 오래된 작품으로, 현재는 정가로 판매 중입니다.`,
-                    "release:old"
-                );
+                const text = curDp > 0
+                    ? `출시 후 상당 기간이 지난 작품으로, 안정적인 할인 주기에 진입한 상태입니다.`
+                    : `출시된 지 오래된 작품이지만 현재는 할인 없이 정가로 판매되고 있습니다.`;
+                this.#pushItem(items, "info", 30, text, "release:old");
             }
         }
+    }
 
-        // ---------------- (3) 언어 / 한글패치 ----------------
+    #analyzeLanguage(ctx, items) {
+        const { kind, steamItem, hasCommunityPatch } = ctx;
         if (kind === "app") {
             const koLevel = Number(steamItem?.supported_languages ?? 0);
             if (koLevel === 2) {
-                push("consider", 85, `공식 ${strong("한국어(음성 포함)")}을 지원합니다.`, "lang:ko_voice");
+                this.#pushItem(items, "consider", 85, `공식적으로 ${this.#strong("한국어 자막과 음성")}을 모두 지원하여 몰입도 높은 플레이가 가능합니다.`, "lang:ko_voice");
             } else if (koLevel === 1) {
-                push("consider", 75, `공식 ${strong("한국어")}를 지원합니다.`, "lang:ko_sub");
+                this.#pushItem(items, "consider", 75, `공식 ${this.#strong("한국어 자막")}을 지원하여 원활한 게임 진행이 가능합니다.`, "lang:ko_sub");
             } else if (hasCommunityPatch) {
-                push("info", 65, `공식 한국어는 없지만 ${strong("유저 한글패치")}가 존재합니다.`, "lang:community_patch");
+                this.#pushItem(items, "info", 65, `공식 한국어는 지원하지 않으나, 사용자가 제작한 ${this.#strong("유저 한글패치")}가 존재합니다.`, "lang:community_patch");
             } else {
-                push("caution", 85, `공식 ${strong("한국어 미지원")}으로 인해 언어 부담이 생길 수 있습니다.`, "lang:no_ko");
+                this.#pushItem(items, "caution", 85, `공식 ${this.#strong("한국어 미지원")} 상품으로, 플레이 시 언어 장벽이 느껴질 수 있습니다.`, "lang:no_ko");
             }
         } else {
-            push(
-                "info",
-                30,
-                `묶음 상품은 구성 게임별로 ${strong("한국어 지원 여부")}가 다를 수 있어, 각 게임의 Steam 상점 페이지에서 언어 정보를 확인해 주세요.`,
-                "lang:bundle_unknown"
-            );
+            this.#pushItem(items, "info", 30, `구성 상품별로 ${this.#strong("한국어 지원 여부")}가 다를 수 있으니 Steam 상점에서 개별 정보를 꼭 확인해 주세요.`, "lang:bundle_unknown");
         }
+    }
 
-        // ---------------- (4) 장르 ----------------
+    #analyzeGenre(ctx, items) {
+        const { steamItem } = ctx;
         const genres = Array.isArray(steamItem?.genres) ? steamItem.genres.filter(Boolean) : [];
         if (genres.length > 0) {
-            const gText = escapeHtml(genres.slice(0, 4).join("·"));
-            push("info", 70, `장르는 ${strong(gText)}입니다.`, "meta:genres");
+            const gText = escapeHtml(genres.slice(0, 4).join(" · "));
+            this.#pushItem(items, "info", 70, `주요 장르는 ${this.#strong(gText)}입니다.`, "meta:genres");
 
-            // 취향 편차 힌트(억지 방지)
             const hasRoguelike = genres.some((g) => /로그|rogue/i.test(String(g)));
             const hasPvp = genres.some((g) => /pvp|대전|경쟁/i.test(String(g)));
             if (hasRoguelike || hasPvp) {
-                push("info", 25, `장르 특성상 취향에 따른 체감 차이가 있을 수 있어, 플레이 스타일을 함께 고려해 보세요.`, "meta:genre_taste");
+                this.#pushItem(items, "info", 25, `장르 특성상 개인의 취향에 따라 플레이 경험이 크게 달라질 수 있으니 신중히 고려해 보세요.`, "meta:genre_taste");
             }
         }
+    }
 
-        // ---------------- (5) 리뷰 ----------------
+    #analyzeReviews(ctx, items) {
+        const { kind, reviews } = ctx;
         const total = Number(reviews?.total || 0);
         const positive = Number(reviews?.positive || 0);
         const negative = Number(reviews?.negative || 0);
         const summary = String(reviews?.summary || "").trim();
         const tone = this.#mapReviewTone(summary);
-
-        const number_format = (n) => Number(n).toLocaleString("ko-KR");
-
-// 라벨 원문 유지
         const labelText = summary ? escapeHtml(summary) : "평가 정보 없음";
 
         if (kind === "app" && total > 0) {
-            // 1) 평가(라벨) — 긍정적 이상이면 consider로 승격
             const isGoodReview = tone === "positive" || tone === "very_positive";
-
             const reviewCategory = isGoodReview ? "consider" : "info";
-            const reviewWeight =
-                tone === "very_positive" ? 80 :
-                    tone === "positive" ? 72 :
-                        55;
+            const reviewWeight = tone === "very_positive" ? 80 : (tone === "positive" ? 72 : 55);
 
-            push(
-                reviewCategory,
-                reviewWeight,
-                `현재 평가는 ${strong(`"${labelText}"`)}입니다.`,
-                "reviews:label"
-            );
+            this.#pushItem(items, reviewCategory, reviewWeight, `현재 전반적인 사용자 평가는 ${this.#strong(`"${labelText}"`)} 상태입니다.`, "reviews:label");
 
-            // 2) 수치 정보 — 긍정 비율(%)을 항상 같이 보여주기
-            const posRate = total > 0 ? (positive / total) * 100 : null;
-            const posRateText = posRate != null ? ` (${posRate.toFixed(1)}%)` : "";
-
-            // positive/negative가 둘 다 0일 수도 있으니 방어
+            const posRate = (positive / total) * 100;
             if ((positive + negative) > 0) {
-                push(
-                    "info",
-                    50,
-                    `리뷰 수는 ${strong(number_format(total) + "개")}이며, 그중 ${strong("긍정")} 리뷰가 ${strong(number_format(positive) + "개" + posRateText)}입니다.`,
-                    "reviews:count_with_positive_rate"
-                );
+                this.#pushItem(items, "info", 50, `총 ${this.#strong(total.toLocaleString() + "개")}의 리뷰 중 약 ${this.#strong(posRate.toFixed(1) + "%")}가 긍정적인 반응을 보이고 있습니다.`, "reviews:count_with_positive_rate");
             } else {
-                push(
-                    "info",
-                    50,
-                    `리뷰 수는 ${strong(number_format(total) + "개")}입니다.`,
-                    "reviews:count_only"
-                );
+                this.#pushItem(items, "info", 50, `현재까지 등록된 사용자 리뷰는 총 ${this.#strong(total.toLocaleString() + "개")}입니다.`, "reviews:count_only");
             }
 
-            // 3) 라벨이 부정 쪽일 때만 caution
             if (tone === "very_negative") {
-                push(
-                    "caution",
-                    90,
-                    `평가가 낮게 형성된 상태이므로, 구매 전 상세 리뷰를 함께 확인해 보세요.`,
-                    "reviews:very_negative"
-                );
+                this.#pushItem(items, "caution", 90, `평가가 매우 부정적이므로, 구매 결정 전에 최근 리뷰와 상세 내용을 꼼꼼히 확인해 보세요.`, "reviews:very_negative");
             } else if (tone === "negative") {
-                push(
-                    "caution",
-                    75,
-                    `평가가 낮은 편이므로, 구매 전 상세 리뷰를 함께 확인해 보세요.`,
-                    "reviews:negative"
-                );
+                this.#pushItem(items, "caution", 75, `평가가 좋지 않은 편입니다. 게임 내적인 결함이나 호불호 요소를 리뷰를 통해 파악해 보세요.`, "reviews:negative");
             }
         } else if (kind === "app" && total === 0) {
-            push("info", 35, `아직 집계된 리뷰가 없습니다.`, "reviews:none");
+            this.#pushItem(items, "info", 35, `아직 충분한 사용자 리뷰가 누적되지 않아 객관적인 평가 확인이 어렵습니다.`, "reviews:none");
         }
+    }
 
-        // ---------------- (6) 구매 옵션 ----------------
+    #analyzeOptions(ctx, items) {
+        const { steamItem } = ctx;
         const po = steamItem?.purchase_options;
         const poItems = Array.isArray(po?.items) ? po.items : [];
         if (poItems.length > 1) {
-            push("info", 45, `구매 옵션이 ${strong(`${poItems.length}개`)} 존재합니다. 에디션별 구성/가격 차이를 확인해 보세요.`, "po:count");
+            this.#pushItem(items, "info", 45, `현재 ${this.#strong(`${poItems.length}가지의 구매 옵션`)}이 제공되고 있습니다. 에디션별 구성을 비교해 보세요.`, "po:count");
 
-            // 에디션 가격 편차
-            const finals = poItems
-                .map((x) => Number(x?.final_price))
-                .filter((n) => Number.isFinite(n) && n > 0)
-                .sort((a, b) => a - b);
-
+            const finals = poItems.map(x => Number(x?.final_price)).filter(n => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
             if (finals.length >= 2) {
                 const min = finals[0];
                 const max = finals[finals.length - 1];
                 if (min > 0 && max / min >= 1.6) {
-                    push(
-                        "caution",
-                        55,
-                        `에디션 간 가격 차이가 큰 편이라, 본편만 필요한지(또는 추가 구성물이 필요한지)를 먼저 정리해 두는 것이 좋습니다.`,
-                        "po:gap"
-                    );
+                    this.#pushItem(items, "caution", 55, `에디션 간 가격 편차가 큰 편입니다. 추가 구성물이 본인에게 정말 필요한지 먼저 검토해 보세요.`, "po:gap");
                 }
             }
-
-            // 에디션별 할인율이 다르면 참고
-            const dps = Array.from(new Set(poItems.map((x) => Number(x?.discount_percent)).filter((n) => Number.isFinite(n))));
+            const dps = Array.from(new Set(poItems.map(x => Number(x?.discount_percent)).filter(n => Number.isFinite(n))));
             if (dps.length >= 2) {
-                push("info", 35, `에디션별 할인율이 서로 다를 수 있습니다. 각 옵션의 할인율을 함께 확인해 보세요.`, "po:dp_varies");
+                this.#pushItem(items, "info", 35, `구매 옵션에 따라 할인율이 다르게 적용되고 있으니, 각 항목의 실제 혜택을 비교해 보세요.`, "po:dp_varies");
             }
         } else {
-            const sig = steamItem?.purchasable_signals;
-            const hasSteamPrice = !!sig?.has_steam_price;
-            if (!hasSteamPrice) {
-                push("caution", 70, `Steam 가격 정보가 확인되지 않아 구매 가능 여부를 Steam 상점에서 다시 확인해 주세요.`, "po:no_price");
+            if (!(steamItem?.purchasable_signals?.has_steam_price)) {
+                this.#pushItem(items, "caution", 70, `Steam 내 가격 정보가 명확히 표시되지 않고 있습니다. 상점 페이지에서 직접 확인이 필요합니다.`, "po:no_price");
             }
         }
+    }
 
-        // ---------------- (7) DLC ----------------
+    #analyzeDlc(ctx, items) {
+        const { steamItem, listPrice } = ctx;
         const dlc = steamItem?.dlc;
         const dlcCount = Number(dlc?.count || 0);
         const dlcPriced = Number(dlc?.priced_count || 0);
-        const dlcTotalRegular = Number(dlc?.total_regular);
         const dlcTotalFinal = Number(dlc?.total_final);
+        const dlcTotalRegular = Number(dlc?.total_regular);
 
         if (dlcCount > 0) {
-            push("info", 30, `DLC가 ${strong(`${dlcCount}개`)} 존재합니다.`, "dlc:count");
+            this.#pushItem(items, "info", 30, `이 게임은 총 ${this.#strong(`${dlcCount}개`)}의 다운로드 가능한 콘텐츠(DLC)를 보유하고 있습니다.`, "dlc:count");
 
             if (dlcPriced > 0) {
                 if (Number.isFinite(dlcTotalFinal) && Number.isFinite(listPrice) && listPrice > 0) {
                     const ratio = dlcTotalFinal / listPrice;
                     if (ratio >= 1.0) {
-                        push(
-                            "caution",
-                            60,
-                            `유료 DLC 총액이 본편 정가와 비슷하거나 더 큰 편입니다. 장기 플레이를 고려하신다면, 포함 구성에 따른 전체 비용을 함께 확인해 보세요.`,
-                            "dlc:cost_high"
-                        );
+                        this.#pushItem(items, "caution", 60, `유료 DLC 합산 금액이 본편 가격을 상회합니다. 모든 콘텐츠가 필요한 경우 전체 비용을 고려해 보세요.`, "dlc:cost_high");
                     } else if (ratio >= 0.5) {
-                        push(
-                            "info",
-                            35,
-                            `유료 DLC 총액이 본편 정가의 절반 이상인 편입니다. 필요한 DLC만 선택해도 충분한지 확인해 보세요.`,
-                            "dlc:cost_mid"
-                        );
+                        this.#pushItem(items, "info", 35, `유료 DLC의 총액이 본편 가격의 절반 이상을 차지할 만큼 비중이 큰 편입니다.`, "dlc:cost_mid");
                     }
                 }
-
                 if (Number.isFinite(dlcTotalRegular) && Number.isFinite(dlcTotalFinal) && dlcTotalRegular === dlcTotalFinal) {
-                    push("info", 25, `현재 DLC는 할인 적용이 없는 항목이 포함될 수 있습니다.`, "dlc:no_discount");
+                    this.#pushItem(items, "info", 25, `현재 진행 중인 할인에서 일부 DLC는 제외되었을 수 있으니 개별 가격을 확인해 보세요.`, "dlc:no_discount");
                 }
             }
         }
+    }
 
-        // ---------------- (7.5) 도전과제(참고 정보) ----------------
-        // data.steam.app.achievement_count 기준 (총 도전과제 수)
+    #analyzeAchievements(ctx, items) {
+        const { kind, steamItem } = ctx;
         if (kind === "app") {
             const ac = steamItem?.achievement_count;
-
             if (typeof ac === "number") {
                 if (ac > 0) {
-                    push("info", 32, `도전과제가 ${strong(`${number_format(ac)}개`)} 존재합니다.`, "meta:achievements");
+                    this.#pushItem(items, "info", 32, `총 ${this.#strong(ac.toLocaleString() + "개")}의 도전과제를 지원하여 다양한 수집 요소와 목표를 제공합니다.`, "meta:achievements");
                 } else {
-                    // 0은 사실상 "미지원" 케이스로 처리
-                    push("info", 24, `도전과제를 지원하지 않습니다.`, "meta:achievements_none");
+                    this.#pushItem(items, "info", 24, `현재 이 게임은 Steam 도전과제를 지원하지 않는 것으로 확인됩니다.`, "meta:achievements_none");
                 }
-            } else {
-                // 값이 없으면(미지원/미제공)도 “참고 정보”로는 무해하니 단정 없이 안내
-                push("info", 22, `도전과제 정보가 확인되지 않습니다.`, "meta:achievements_unknown");
             }
         }
+    }
 
-        // ---------------- (8) 할인 종료 임박 ----------------
+    #analyzeExpiry(ctx, items) {
+        const { deal } = ctx;
         const expiry = deal?.current?.expiry_at;
         if (expiry) {
             const info = this.#formatKoreanUntilWithDaysLeft(expiry);
             if (info?.untilText && Number.isFinite(info.daysLeft)) {
                 const { untilText, daysLeft } = info;
                 if (daysLeft <= 0) {
-                    push("caution", 70, `할인은 ${strong(untilText)}에 ${strong("종료")}됩니다.`, "expiry:today");
+                    this.#pushItem(items, "caution", 70, `현재 진행 중인 할인이 ${this.#strong("오늘(" + untilText + ")")} 종료될 예정입니다.`, "expiry:today");
                 } else if (daysLeft === 1) {
-                    push("caution", 60, `할인은 ${strong(untilText)}까지 ${strong("1일")} 남아있습니다.`, "expiry:1d");
+                    this.#pushItem(items, "caution", 60, `할인 종료까지 ${this.#strong("단 1일")} 남았습니다. (${untilText} 종료)`, "expiry:1d");
                 } else if (daysLeft <= 2) {
-                    push("info", 40, `할인은 ${strong(untilText)}까지 ${strong(`${daysLeft}일`)} 남아있습니다.`, "expiry:soon");
+                    this.#pushItem(items, "info", 40, `할인 종료 시점이 약 ${this.#strong(daysLeft + "일")} 앞으로 다가왔습니다. (${untilText} 종료)`, "expiry:soon");
                 }
             }
         }
+    }
 
-        // ---------------- 그룹화 & 렌더 ----------------
+    #renderNarrative(items, ctx) {
         const groups = { consider: [], info: [], caution: [] };
-        for (const it of items) groups[it.category].push(it);
+        for (const it of items) {
+            groups[it.category].push(it);
+        }
 
         for (const k of Object.keys(groups)) {
             groups[k].sort((a, b) => b.weight - a.weight);
-            // 피로도 방지용 상한(원하면 조절)
             const max = k === "info" ? 5 : 4;
             groups[k] = groups[k].slice(0, max);
         }
@@ -634,115 +515,7 @@ export class NarrativeRenderer {
         </div>`;
         };
 
-        // ---------------- 총평(재조합, 단정 방지) ----------------
-        const topInfo = groups.info[0];
-
-        // 특정 시그널 키 존재 여부로 총평을 세분화
-        const has = (k) => items.some((x) => x.key === k);
-
-        // 가격 관련 시그널
-        const priceATL = has("price:atl_now") || has("price:atl_same") || has("price:atl_near");
-        const priceFull = has("price:now_full") || has("price:now_full_past_sale") || has("price:no_sale_ever");
-        const priceWaitUncertain = has("price:wait_uncertain");
-
-        // 할인율 등급 시그널(이번에 추가한 키)
-        const dpVeryBig = has("price:dp_75_up");
-        const dpBig = has("price:dp_over_50") || has("price:dp_50");
-        const dpMeaningful = has("price:dp_under_50_over_30");
-        const dpLight = has("price:dp_30_down") || has("price:dp_10_down");
-
-        // 언어/리뷰/구성 리스크
-        const langNoKo = has("lang:no_ko");
-        const reviewsBad = has("reviews:very_negative") || has("reviews:negative");
-        const poGap = has("po:gap");
-        const dlcHigh = has("dlc:cost_high");
-
-        // 임박(정보성)
-        const expirySoon = has("expiry:today") || has("expiry:1d") || has("expiry:soon");
-
-        // 총평 문구 조합용
-        const wrap = (s) => s.replace(/\s+/g, " ").trim();
-        const addSuffix = (s) => `${s} ${strong("플레이 시점과 비교 기준에 따라")} 체감은 달라질 수 있습니다.`;
-
-        // 1) 리스크(언어/리뷰/구성)가 강한 경우를 우선 처리
-        let conclusion = "";
-        if (langNoKo && reviewsBad) {
-            conclusion = addSuffix(
-                `가격 조건과 별개로, ${strong("한국어 지원")}과 ${strong("평가")} 측면에서 확인할 지점이 있습니다. 구매 전 상점 페이지와 상세 리뷰를 함께 살펴보는 편이 안전합니다.`
-            );
-        } else if (reviewsBad) {
-            conclusion = addSuffix(
-                `${strong("평가")}가 낮게 형성된 상태라, 가격 조건과 함께 상세 리뷰를 확인해 보는 쪽이 좋습니다.`
-            );
-        } else if (langNoKo) {
-            conclusion = addSuffix(
-                `${strong("공식 한국어 미지원")}으로 플레이 경험이 달라질 수 있어, 언어 부담을 먼저 감안해 보세요.`
-            );
-        } else if (poGap || dlcHigh) {
-            conclusion = addSuffix(
-                `구성(에디션/DLC)에 따라 총 비용과 체감 가치가 달라질 수 있습니다. 필요한 구성만 골라서 비교해 보세요.`
-            );
-        }
-
-        const priceAtlNow = has("price:atl_now");
-        const priceAtlSame = has("price:atl_same");
-        const priceAtlNear = has("price:atl_near");
-        const priceAtlFar  = has("price:atl_far");
-
-        // 2) 위 리스크 총평이 없으면, 가격 축으로 총평 세분화
-        if (!conclusion) {
-            if (priceAtlNow) {
-                conclusion = addSuffix(
-                    `현재 가격은 ${strong("역대 최저가")}로 확인됩니다.`
-                );
-            } else if (priceAtlSame) {
-                conclusion = addSuffix(
-                    `현재 조건은 과거 최저가와 ${strong("같은 수준")}입니다.`
-                );
-            } else if (priceAtlNear) {
-                conclusion = addSuffix(
-                    `현재 조건은 과거 최저가와 ${strong("큰 차이 없는")} 편입니다.`
-                );
-            } else if (priceAtlFar) {
-                conclusion = addSuffix(
-                    `현재도 할인 중이지만, 과거 최저가 대비 ${strong("차이가 있는")} 편입니다.`
-                );
-            } else if (dpVeryBig || dpBig || dpMeaningful) {
-                conclusion = addSuffix(
-                    `가격 측면에서 참고할 만한 할인 폭이 확인됩니다.`
-                );
-            } else if (curDp > 0 && dpLight) {
-                conclusion = addSuffix(
-                    `현재 할인 중이지만 할인 폭은 가벼운 편이라, 플레이 시점에 따라 체감이 달라질 수 있습니다.`
-                );
-            } else if (priceFull && hasRealDiscountHistory) {
-                conclusion = addSuffix(
-                    `현재는 정가지만 과거 할인 이력이 있습니다. 당장 플레이 계획이 없다면, 가격 이력과 다음 변동을 함께 지켜보는 선택지도 있어요.`
-                );
-            } else if (priceFull && !hasRealDiscountHistory) {
-                conclusion = addSuffix(
-                    `현재는 정가이며, 할인/가격 이력이 제한적이거나 확정하기 어렵습니다. 비교 기준을 정해두고(플레이 시점/예산) 확인해 보세요.`
-                );
-            } else if (priceWaitUncertain) {
-                conclusion = addSuffix(
-                    `다음 할인 시점은 확정하기 어려워, 지금 필요한지(바로 플레이할지) 여부가 기준이 될 수 있습니다.`
-                );
-            } else if (topInfo) {
-                conclusion = addSuffix(
-                    `${topInfo.text} 현재 정보만으로 한쪽 결론으로 기울이기보다는, 본인 기준에 맞춰 비교해 보세요.`
-                );
-            }
-        }
-
-        // 3) 임박 정보는 총평 뒤에 짧게 덧붙이기(유도 금지)
-        if (conclusion && expirySoon) {
-            conclusion = wrap(`${conclusion} 또한 ${strong("할인 종료일")}이 가까울 수 있으니 종료 일자도 함께 확인해 주세요.`);
-        }
-
-        conclusion = wrap(conclusion);
-
-
-        if (conclusion) conclusion = conclusion.replace(/\s+/g, " ").trim();
+        const conclusion = this.#buildConclusion(items, ctx);
 
         return [
             renderGroup("고려해볼 만한 요소", "✔", groups.consider),
@@ -752,5 +525,69 @@ export class NarrativeRenderer {
                 ? `<div><p class="text-sm font-semibold text-white/85">총평</p><p class="mt-2 text-sm text-white/70 leading-relaxed">${conclusion}</p></div>`
                 : "",
         ].filter(Boolean).join("");
+    }
+
+    #buildConclusion(items, ctx) {
+        const has = (k) => items.some((x) => x.key === k);
+        const { curDp, hasRealDiscountHistory, allTimeLowEqualsList } = ctx;
+
+        // 시그널 정리
+        const langNoKo = has("lang:no_ko");
+        const reviewsBad = has("reviews:very_negative") || has("reviews:negative");
+        const poGap = has("po:gap");
+        const dlcHigh = has("dlc:cost_high");
+        const expirySoon = has("expiry:today") || has("expiry:1d") || has("expiry:soon");
+
+        const atlSignals = ["price:atl_now", "price:atl_same", "price:atl_near"];
+        const isAtl = atlSignals.some(s => has(s));
+        const isFarAtl = has("price:atl_far");
+
+        const dpVeryBig = has("price:dp_75_up");
+        const dpBig = has("price:dp_over_50") || has("price:dp_50");
+        const dpMeaningful = has("price:dp_under_50_over_30");
+        const dpLight = has("price:dp_30_down") || has("price:dp_10_down");
+
+        const addSuffix = (s) => `${s} ${this.#strong("플레이 시점과 개인의 우선순위")}에 따라 판단은 달라질 수 있습니다.`;
+        const wrap = (s) => s.replace(/\s+/g, " ").trim();
+
+        let conclusion = "";
+
+        // 1순위: 언어 및 리뷰 등 중대한 리스크
+        if (langNoKo && reviewsBad) {
+            conclusion = addSuffix(`현재 가격 조건과 별개로, ${this.#strong("한국어 미지원")} 및 ${this.#strong("부정적인 사용자 평가")}를 동시에 고려해야 합니다. 신중한 접근이 필요해 보입니다.`);
+        } else if (reviewsBad) {
+            conclusion = addSuffix(`사용자 평가가 좋지 않은 상태이므로, 가격 혜택보다는 게임 자체의 완성도나 본인의 취향을 다시 한번 점검해 보시는 것을 추천합니다.`);
+        } else if (langNoKo) {
+            conclusion = addSuffix(`공식 한국어를 지원하지 않아 플레이에 언어 장벽이 있을 수 있습니다. 유저 패치 여부나 본인의 언어 숙련도를 감안하여 구매를 고려해 보세요.`);
+        } else if (poGap || dlcHigh) {
+            conclusion = addSuffix(`에디션 간 가격 차이나 DLC 비중이 큰 편입니다. 필요한 구성만 포함된 옵션을 선택하여 불필요한 지출을 줄이는 것이 좋습니다.`);
+        }
+
+        // 2순위: 가격적 이점
+        if (!conclusion) {
+            if (isAtl) {
+                conclusion = addSuffix(`현재 가격은 ${this.#strong("역대 최저가 수준")}으로, 가격적인 측면에서 매우 유리한 구매 시점으로 판단됩니다.`);
+            } else if (isFarAtl) {
+                conclusion = addSuffix(`현재 할인 중이지만 과거 최저가와는 다소 차이가 있습니다. 급한 플레이가 아니라면 다음 할인 기회를 기다려보는 것도 방법입니다.`);
+            } else if (dpVeryBig || dpBig || dpMeaningful) {
+                conclusion = addSuffix(`정가 대비 ${this.#strong("의미 있는 수준의 할인율")}이 적용되어 있어, 평소 관심 있던 게임이라면 충분히 매력적인 가격대입니다.`);
+            } else if (curDp > 0 && dpLight) {
+                conclusion = addSuffix(`할인이 진행 중이나 할인 폭은 다소 가벼운 편입니다. 플레이 시점의 시급성에 따라 판단이 달라질 수 있는 구간입니다.`);
+            } else if (curDp === 0) {
+                if (hasRealDiscountHistory) {
+                    conclusion = addSuffix(`현재 정가 판매 중이나 과거 할인 이력이 뚜렷합니다. 시간적 여유가 있다면 다음 할인 기간을 기다려 보는 것을 추천합니다.`);
+                } else if (allTimeLowEqualsList) {
+                    conclusion = addSuffix(`과거에도 할인 기록이 없는 상품입니다. 정가 구매가 일반적인 선택일 수 있으며, 플레이 계획에 맞춰 결정해 보세요.`);
+                } else {
+                    conclusion = addSuffix(`현재 정가 상태이며 가격 변동 이력이 제한적입니다. 본인의 예산과 플레이 계획을 우선적으로 고려하여 판단해 보세요.`);
+                }
+            }
+        }
+
+        if (conclusion && expirySoon) {
+            conclusion = wrap(`${conclusion} 또한 ${this.#strong("할인 종료가 임박")}했으므로, 구매를 결정하셨다면 종료 일시를 꼭 확인하시기 바랍니다.`);
+        }
+
+        return wrap(conclusion);
     }
 }
