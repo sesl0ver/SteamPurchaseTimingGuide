@@ -20,15 +20,6 @@ final class StatsTracker
         $this->redis->expire($key, 60 * 86400);
     }
 
-    /* ========= CCU ========= */
-
-    public function markCcu(string $fp): void
-    {
-        $key = 'stats:ccu:' . date('YmdHi');
-        $this->redis->sAdd($key, $fp);
-        $this->redis->expire($key, 180);
-    }
-
     /* ========= Retention ========= */
 
     public function markFirstSeen(string $fp): void
