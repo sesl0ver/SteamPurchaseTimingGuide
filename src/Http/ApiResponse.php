@@ -68,7 +68,7 @@ class ApiResponse
         $response->getBody()->write($json);
 
         return $response
-            ->withHeader('Content-Type', 'application/json')
+            ->withHeader('Content-Type', 'application/json; charset=utf-8')
             ->withStatus($status);
     }
 }

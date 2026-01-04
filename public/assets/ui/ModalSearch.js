@@ -92,7 +92,15 @@ export class ModalSearch {
       </div>
 
       <div class="mt-4 max-h-[60vh] space-y-2 overflow-auto pr-1">
-        ${listHtml || `<p class="text-sm text-white/60">검색 결과가 없습니다.</p>`}
+        ${listHtml || `
+          <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center">
+            <p class="text-sm font-semibold text-white/80">검색 결과가 없습니다</p>
+            <p class="mt-2 text-xs leading-relaxed text-white/50">
+              정확한 게임명을 입력하거나, Steam 상점 페이지의<br>
+              URL 주소 또는 App ID를 직접 입력해 보세요.
+            </p>
+          </div>
+        `}
       </div>
     `;
 

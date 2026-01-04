@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 
 use App\Http\ApiResponse;
 use App\Service\Fingerprint;
+use App\Service\StatsTracker;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Redis;
@@ -15,7 +16,8 @@ final class RecentLookupController
     private const string RECENT_KEY = 'lookups:recent';
 
     public function __construct(
-        private readonly Redis $redis
+        private readonly Redis $redis,
+        private readonly StatsTracker $statsTracker
     ) {}
 
     /**
@@ -24,7 +26,8 @@ final class RecentLookupController
      */
     public function listRecent(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        $this->recordStats($request);
+        $fp = Fingerprint::fromRequest($request);
+        $this->statsTracker->trackCcu($fp);
 
         $q = $request->getQueryParams();
         $limit = isset($q['limit']) ? (int)$q['limit'] : 10;
@@ -81,14 +84,6 @@ final class RecentLookupController
             ],
             'items' => $items,
         ]);
-    }
-
-    private function recordStats(ServerRequestInterface $request): void
-    {
-        $fp = Fingerprint::fromRequest($request);
-        $ccuKey = 'stats:ccu:' . date('YmdHi');
-        $this->redis->sAdd($ccuKey, $fp);
-        $this->redis->expire($ccuKey, 180);
     }
 
     private function parseMember(string $member): array

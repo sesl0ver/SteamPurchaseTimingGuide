@@ -37,4 +37,13 @@ final class StatsTracker
         $this->redis->hIncrBy($key, $event, 1);
         $this->redis->expire($key, 30 * 86400);
     }
+
+    /* ========= CCU ========= */
+
+    public function trackCcu(string $fp): void
+    {
+        $key = 'stats:ccu:' . date('YmdHi');
+        $this->redis->sAdd($key, $fp);
+        $this->redis->expire($key, 180); // 3분간 유지
+    }
 }

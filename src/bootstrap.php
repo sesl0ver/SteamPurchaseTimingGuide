@@ -70,12 +70,6 @@ $app->group('/admin', function ($group) {
 
 // API(JSON)
 $app->group('/api', function ($group) {
-    /* 로그인 TODO 차후 업데이트를 위한 참고용 API
-    $group->post('/login', AuthController::class . ':login')
-        ->add(new ValidateJsonBodyMiddleware([
-            'email'    => ['required' => true, 'type' => 'string', 'min' => 3, 'max' => 255],
-            'password' => ['required' => true, 'type' => 'string', 'min' => 8, 'max' => 72],
-        ]));*/
     $group->get('/recent-lookups', [RecentLookupController::class, 'listRecent']); // 최근 조회 목록
 
     // Steam Store Search (server proxy)

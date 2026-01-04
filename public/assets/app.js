@@ -83,6 +83,14 @@ import { RecentLookupRenderer } from "./render/RecentLookupRenderer.js";
         const term = (searchTermInput?.value || "").trim();
         if (!term) return;
 
+        // 만약 입력값이 Steam URL이나 AppID 형식이면 바로 조회를 시도
+        const parsed = parseSteamInput(term);
+        if (parsed) {
+            appIdInput.value = term;
+            runFetch({ source: "user" });
+            return;
+        }
+
         try {
             loading.show();
             const data = await api.storeSearch(term);

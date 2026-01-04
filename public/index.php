@@ -29,6 +29,7 @@ use App\Middleware\AdminGuardMiddleware;
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
 use App\Controller\Api\WishlistController;
+use App\Controller\Api\RecentLookupController;
 use App\Controller\AuthController;
 
 $dotenv = Dotenv::createImmutable(dirname(__DIR__));
@@ -158,6 +159,13 @@ $container->set(DealController::class, function ($c) {
     return new DealController(
         $c->get(SteamDealHelper::class),
         $c->get(LookupHistoryTracker::class),
+    );
+});
+
+$container->set(RecentLookupController::class, function ($c) {
+    return new RecentLookupController(
+        $c->get(\Redis::class),
+        $c->get(StatsTracker::class)
     );
 });
 
