@@ -3,8 +3,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Infrastructure\Cache\RedisCache;
-use GuzzleHttp\Client;
+use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use RuntimeException;
 
@@ -24,16 +23,12 @@ final class SteamClient
     private const int TTL_STORE_SEARCH     = 300;  // 5m (검색은 짧게 캐시)
     private const int TTL_NEGATIVE         = 600;  // 10m (없는 ID 반복 호출 방지)
 
-    private Client $http;
     private string $steamBaseUrl = 'https://store.steampowered.com';
 
     public function __construct(
         private readonly RedisCache $cache,
-        ?Client $http = null
-    ) {
-        // 기존 동작 유지 + 외부에서 주입 가능
-        $this->http = $http ?? new Client(['timeout' => 30]);
-    }
+        private readonly ClientInterface $http,
+    ) {}
 
     /* =========================================================
      * Low-level request helpers
@@ -42,14 +37,14 @@ final class SteamClient
     private function requestJson(string $method, string $url, array $options = []): array
     {
         try {
-            $response = $this->http->request($method, $url, $options + [
-                    'timeout' => 15.0,
-                    'connect_timeout' => 5.0,
-                    'http_errors' => false,
-                    'headers' => [
-                        'Accept' => 'application/json',
-                    ],
-                ]);
+            $response = $this->http->request($method, $url, array_replace_recursive([
+                'timeout' => 15.0,
+                'connect_timeout' => 5.0,
+                'http_errors' => false,
+                'headers' => [
+                    'Accept' => 'application/json',
+                ],
+            ], $options));
 
             $status = $response->getStatusCode();
             $raw = (string)$response->getBody();
@@ -65,40 +60,7 @@ final class SteamClient
 
             return $json;
         } catch (GuzzleException $e) {
-            throw new RuntimeException(
-                "Steam Store API request failed: {$e->getMessage()}",
-                0,
-                $e
-            );
-        }
-    }
-
-    private function requestText(string $method, string $url, array $options = []): string
-    {
-        try {
-            $response = $this->http->request($method, $url, $options + [
-                    'timeout' => 15.0,
-                    'connect_timeout' => 5.0,
-                    'http_errors' => false,
-                    'headers' => [
-                        'Accept' => 'application/json',
-                    ],
-                ]);
-
-            $status = $response->getStatusCode();
-            $raw = (string)$response->getBody();
-
-            if ($status >= 400) {
-                throw new RuntimeException("Steam Store API HTTP {$status}: {$raw}");
-            }
-
-            return $raw;
-        } catch (GuzzleException $e) {
-            throw new RuntimeException(
-                "Steam Store API request failed: {$e->getMessage()}",
-                0,
-                $e
-            );
+            throw new RuntimeException("Steam Store API request failed: {$e->getMessage()}", 0, $e);
         }
     }
 

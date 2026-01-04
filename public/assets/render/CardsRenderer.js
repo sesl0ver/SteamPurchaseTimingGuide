@@ -134,99 +134,21 @@ export class CardsRenderer {
 
     // -----------------------------
 
-    normalizeServerDlc(dlcNode, fallbackCurrency = "KRW") {
-        const node = dlcNode?.data ?? dlcNode;
-        if (!node) return { ok: false, count: 0, missingPrice: 0, total: null, currency: fallbackCurrency, items: [] };
-
-        if (Array.isArray(node.items) || typeof node.count === "number") {
-            const itemsRaw = Array.isArray(node.items) ? node.items : [];
-            const items = itemsRaw.map((d) => {
-                const id = d?.appid ?? d?.id ?? null;
-                const name = d?.name ?? d?.title ?? (id ? `DLC ${id}` : "DLC");
-                const p = d?.price || null;
-
-                const amount = p?.final ?? p?.amount ?? d?.amount ?? d?.price_final ?? d?.final_price ?? null;
-                const currency = p?.currency ?? d?.currency ?? node.currency ?? fallbackCurrency;
-
-                return {
-                    appid: id ? String(id) : null,
-                    name: String(name),
-                    price: { amount, currency },
-                };
-            });
-
-            const count = Number(node.count ?? items.length ?? 0);
-            const total =
-                node.total_final != null ? Number(node.total_final) : node.total != null ? Number(node.total) : null;
-
-            const missingPrice = items.reduce((acc, it) => (it?.price?.amount == null ? acc + 1 : acc), 0);
-
-            return {
-                ok: true,
-                items,
-                total: Number.isFinite(total) ? total : null,
-                currency: node.currency ?? fallbackCurrency,
-                count: Number.isFinite(count) ? count : items.length,
-                missingPrice,
-            };
+    normalizeServerDlc(dlc) {
+        if (!dlc || !Array.isArray(dlc.items)) {
+            return { ok: false, items: [], total: null, currency: "KRW", count: 0, missingPrice: 0 };
         }
 
-        return { ok: true, items: [], total: null, currency: fallbackCurrency, count: 0, missingPrice: 0 };
-    }
+        const missingPrice = dlc.items.reduce((acc, it) => (it?.price?.amount == null ? acc + 1 : acc), 0);
 
-    extractPackageOptionsFromPackageGroups(package_groups, currency = "KRW") {
-        const groups = Array.isArray(package_groups) ? package_groups : [];
-        const g = groups.find((x) => String(x?.name || "").toLowerCase() === "default") || groups[0] || null;
-
-        const subs = Array.isArray(g?.subs) ? g.subs : [];
-        const title = g?.title || "구매 옵션";
-
-        const items = subs
-            .map((s) => {
-                const packageid = s?.packageid;
-                const percentText = String(s?.percent_savings_text || "");
-                const dp = clamp(parseInt(percentText.replace(/[^\d]/g, ""), 10), 0, 95) || 0;
-
-                const raw = decodeHtmlEntities(String(s?.option_text || ""));
-                const plain = stripHtml(raw).replace(/\s+/g, " ").trim();
-
-                let name = plain;
-                const idx = plain.indexOf("₩");
-                if (idx > 0) name = plain.slice(0, idx).trim();
-                name = name.replace(/\s*-\s*$/, "").trim();
-
-                let original = null;
-                let final = null;
-
-                if (s?.price_in_cents_with_discount != null) {
-                    const cents = Number(s.price_in_cents_with_discount);
-                    if (Number.isFinite(cents)) final = Math.round(cents / 100);
-                }
-
-                const krwMatches = plain.match(/₩\s*[\d,]+/g) || [];
-                const nums = krwMatches.map(parseKrwTextToNumber).filter((n) => Number.isFinite(n));
-
-                if (nums.length >= 2) {
-                    const max = Math.max(...nums);
-                    const min = Math.min(...nums);
-                    original = original ?? max;
-                    final = final ?? min;
-                } else if (nums.length === 1) {
-                    final = final ?? nums[0];
-                }
-
-                return {
-                    packageid,
-                    name: name || "구매 옵션",
-                    discount_percent: dp,
-                    original_price: original,
-                    final_price: final,
-                    currency,
-                };
-            })
-            .filter((x) => x.packageid != null);
-
-        return { title, items };
+        return {
+            ok: true,
+            items: dlc.items,
+            total: dlc.total_final ?? null,
+            currency: dlc.currency || "KRW",
+            count: dlc.count ?? dlc.items.length,
+            missingPrice,
+        };
     }
 
     render(payload) {
@@ -245,16 +167,11 @@ export class CardsRenderer {
 
         const pkgCount = Number.isFinite(Number(signals?.packages_count))
             ? Number(signals.packages_count)
-            : Array.isArray(steamItem?.packages)
-                ? steamItem.packages.length
-                : 0;
+            : 0;
 
         const groupCount = Number.isFinite(Number(signals?.package_groups_count))
             ? Number(signals.package_groups_count)
-            : (() => {
-                const groupsRaw = steamItem?.package_groups || steamItem?.packageGroups || steam?.package_groups;
-                return Array.isArray(groupsRaw) ? groupsRaw.length : 0;
-            })();
+            : 0;
 
         const hasSteamPrice = typeof signals?.has_steam_price === "boolean"
             ? signals.has_steam_price
@@ -452,7 +369,7 @@ export class CardsRenderer {
         if (kind === "app") {
             // DLC: 0개여도 항상 노출(이전 수정 유지)
             {
-                const dlc = this.normalizeServerDlc(steamItem?.dlc || steam?.dlc, currency);
+                const dlc = this.normalizeServerDlc(steamItem?.dlc || steam?.dlc);
                 const count = Number(dlc?.count || 0);
                 const missing = Number(dlc?.missingPrice || 0);
 
@@ -498,17 +415,8 @@ export class CardsRenderer {
                 dlcCache = dlc;
             }
 
-            // 구매 옵션 (서버 제공 purchase_options 우선, 없으면 legacy(package_groups) 파싱 fallback)
-            const serverPkg = steamItem?.purchase_options || null;
-            const pkg = serverPkg?.items
-                ? {
-                    title: serverPkg?.title || "구매 옵션",
-                    items: Array.isArray(serverPkg.items) ? serverPkg.items : [],
-                }
-                : (() => {
-                    const packageGroups = steamItem?.package_groups || steamItem?.packageGroups || steam?.package_groups;
-                    return this.extractPackageOptionsFromPackageGroups(packageGroups, currency);
-                })();
+            // 구매 옵션 (서버 제공 purchase_options만 사용)
+            const pkg = steamItem?.purchase_options || { title: "구매 옵션", items: [] };
             const items = Array.isArray(pkg?.items) ? pkg.items : [];
             const showOptionsBtn = items.length >= 2;
 

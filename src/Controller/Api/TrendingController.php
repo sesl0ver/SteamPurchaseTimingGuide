@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Service\Fingerprint;
+use App\Service\StatsTracker;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Redis;
@@ -14,25 +15,21 @@ final class TrendingController
     private const int MAX_LIMIT = 30;
 
     private const int TMP_TTL_SECONDS = 120;           // 집계 임시 ZSET TTL (짧게)
-    private const int META_TTL_SECONDS = 90 * 86400;   // 메타 TTL(참고용, 기록쪽과 동일하게 유지 권장)
     private const string RECENT_KEY = 'lookups:recent';
 
     public function __construct(
-        private readonly Redis $redis
+        private readonly Redis $redis,
+        private readonly StatsTracker $stats
     ) {}
 
     /**
      * GET /api/trending?days=7&limit=10
      * - 최근 N일 lookups:daily:* ZSET을 합산해서 상위 항목을 반환
-     * - 조회수는 노출하지 않고 rank만 반환
      */
     public function list(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        // CCU(Ping) 집계: 기존 /api/ping 로직을 Trending 요청에 통합
-        $fp = Fingerprint::fromRequest($request);
-        $ccuKey = 'stats:ccu:' . date('YmdHi');
-        $this->redis->sAdd($ccuKey, $fp);
-        $this->redis->expire($ccuKey, 180);
+        // CCU 집계
+        $this->stats->markCcu(Fingerprint::fromRequest($request));
 
         $q = $request->getQueryParams();
 
@@ -76,7 +73,6 @@ final class TrendingController
                 ],
             ]);
         }
-        $members = $this->redis->zRevRange(self::RECENT_KEY, 0, $limit - 1);
 
         // 메타를 파이프라인으로 묶어서 읽기
         $fields = ['kind', 'id', 'title', 'header_image', 'steam_url', 'last_seen_at'];

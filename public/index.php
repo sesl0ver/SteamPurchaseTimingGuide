@@ -95,12 +95,15 @@ $container->set(LookupTrendTracker::class, function ($c) {
     );
 });
 
-$container->set(SteamWebApiClient::class, function () {
+$container->set(SteamWebApiClient::class, function ($c) {
     $key = (string)($_ENV['STEAM_WEB_API_KEY'] ?? '');
     if ($key === '') {
         throw new \RuntimeException('Missing env: STEAM_WEB_API_KEY');
     }
-    return new SteamWebApiClient($key);
+    return new SteamWebApiClient(
+        $c->get(ClientInterface::class),
+        $key
+    );
 });
 
 $container->set(SteamService::class, function ($c) {
@@ -124,7 +127,8 @@ $container->set(WishlistRepository::class, function ($c) {
 
 $container->set(SteamClient::class, function ($c) {
     return new SteamClient(
-        $c->get(RedisCache::class)
+        $c->get(RedisCache::class),
+        $c->get(ClientInterface::class)
     );
 });
 
