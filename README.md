@@ -1,6 +1,6 @@
 # Steam Purchase Timing Guide
 
-🔗 **Live Service**: https://sesl0ver.dev
+🔗 **Live Service**: https://buyornot.sesl0ver.dev
 
 Steam **게임 / 패키지(Sub) / 번들(Bundle)**의 가격·할인·역대 최저가·리뷰·언어 지원 정보를 종합하여,  
 **구매 시점 판단에 필요한 객관적 근거를 제공하는 웹 서비스**입니다.
