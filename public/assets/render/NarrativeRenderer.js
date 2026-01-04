@@ -374,7 +374,7 @@ export class NarrativeRenderer {
                     );
                 }
 
-                // ✅ 저가(인디) 게임 안내 추가
+                // 저가(인디) 게임 안내 추가
                 if (listPrice > 0 && listPrice <= 20000) {
                     push(
                         "info",
@@ -474,7 +474,7 @@ export class NarrativeRenderer {
         const labelText = summary ? escapeHtml(summary) : "평가 정보 없음";
 
         if (kind === "app" && total > 0) {
-            // ✅ 1) 평가(라벨) — 긍정적 이상이면 consider로 승격
+            // 1) 평가(라벨) — 긍정적 이상이면 consider로 승격
             const isGoodReview = tone === "positive" || tone === "very_positive";
 
             const reviewCategory = isGoodReview ? "consider" : "info";
@@ -490,7 +490,7 @@ export class NarrativeRenderer {
                 "reviews:label"
             );
 
-            // ✅ 2) 수치 정보 — 긍정 비율(%)을 항상 같이 보여주기
+            // 2) 수치 정보 — 긍정 비율(%)을 항상 같이 보여주기
             const posRate = total > 0 ? (positive / total) * 100 : null;
             const posRateText = posRate != null ? ` (${posRate.toFixed(1)}%)` : "";
 
@@ -511,7 +511,7 @@ export class NarrativeRenderer {
                 );
             }
 
-            // ✅ 3) 라벨이 부정 쪽일 때만 caution
+            // 3) 라벨이 부정 쪽일 때만 caution
             if (tone === "very_negative") {
                 push(
                     "caution",

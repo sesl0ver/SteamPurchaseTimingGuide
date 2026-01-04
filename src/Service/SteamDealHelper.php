@@ -21,8 +21,8 @@ final class SteamDealHelper
 
     /**
      * Steam AppID 기준 딜 정보 묶음 생성 (기존 유지)
-     * ✅ B 방식: DLC는 서버에서 집계/정규화된 형태로 포함(프론트 비용 절감)
-     * ✅ 추가: community_korean_patch(DB)에서 커뮤니티 한글패치 근거 병합
+     * B 방식: DLC는 서버에서 집계/정규화된 형태로 포함(프론트 비용 절감)
+     * 추가: community_korean_patch(DB)에서 커뮤니티 한글패치 근거 병합
      */
     public function build(string|int $steamAppId, string $country = 'KR'): ?array
     {
@@ -33,7 +33,7 @@ final class SteamDealHelper
             return null;
         }
 
-        // ✅ DLC 집계/정규화(v2)
+        // DLC 집계/정규화(v2)
         $dlc = $this->steamClient->getDlcForApp($steamAppId, $country);
         if (!is_array($dlc) || !($dlc['success'] ?? false)) {
             $dlc = [
@@ -65,7 +65,7 @@ final class SteamDealHelper
             $deal = $this->buildDealDataFromOverview($itad);
         }
 
-        // ✅ 커뮤니티 한글패치(DB) 조회 + 파싱
+        // 커뮤니티 한글패치(DB) 조회 + 파싱
         $patchRow = $this->communityPatchRepo->findByAppId((int)$steamAppId);
         $communityPatch = $this->communityPatchParser->fromRow($patchRow);
 
@@ -74,7 +74,7 @@ final class SteamDealHelper
                 'app'     => $this->buildSteamAppData($appData, $dlc),
                 'reviews' => $this->buildSteamReviewData($reviews),
 
-                // ✅ 추가됨: 커뮤니티 한글패치 근거
+                // 추가됨: 커뮤니티 한글패치 근거
                 'korean' => [
                     'community_patch' => $communityPatch,
                 ],
@@ -97,7 +97,7 @@ final class SteamDealHelper
     private function buildSteamAppData(array $appData, array $dlcSummary): array
     {
         // =========================================================
-        // ✅ 반환값 정리 기준 반영
+        // 반환값 정리 기준 반영
         // - 현재 클라이언트에서 실제로 쓰는 값만 유지
         // - 서버에서 가공 가능한 값은 서버에서 먼저 가공해 추가
         // - 문구/표현은 클라이언트에서(서버는 데이터만)
@@ -119,7 +119,7 @@ final class SteamDealHelper
             )
         );
 
-        // ✅ 구매 옵션: package_groups 파싱을 서버로 이동
+        // 구매 옵션: package_groups 파싱을 서버로 이동
         $currency = (string)($dlcSummary['currency'] ?? 'KRW');
         $purchaseOptions = $this->buildPurchaseOptionsFromPackageGroups($packageGroups, $currency);
 
@@ -139,7 +139,7 @@ final class SteamDealHelper
             // 도전과제
             'achievement_count' => $appData['achievements']['total'] ?? 0,
 
-            // ✅ 기존 렌더링 유지용: 구매 가능 판정 신호/디버그
+            // 기존 렌더링 유지용: 구매 가능 판정 신호/디버그
             // (클라이언트가 packages / package_groups 원본을 받지 않아도 동일 로직으로 판정 가능)
             'purchasable_signals' => [
                 'packages_count' => $packagesCount,
@@ -147,7 +147,7 @@ final class SteamDealHelper
                 'has_steam_price' => $hasSteamPrice,
             ],
 
-            // ✅ 구매 옵션(서버 정제 결과)
+            // 구매 옵션(서버 정제 결과)
             // - 클라이언트는 이 데이터를 그대로 이용해 UI 텍스트를 구성
             'purchase_options' => $purchaseOptions,
 

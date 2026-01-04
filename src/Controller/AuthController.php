@@ -29,7 +29,7 @@ class AuthController
             return $response->withHeader('Location', '/')->withStatus(302);
         }
 
-        // ✅ 회원 탈퇴: 유저 정보 + 찜 목록 모두 삭제
+        // 회원 탈퇴: 유저 정보 + 찜 목록 모두 삭제
         // - 트랜잭션으로 묶어서 원자성 보장
         $this->pdo->beginTransaction();
         try {

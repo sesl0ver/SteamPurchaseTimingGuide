@@ -25,7 +25,7 @@ final class ItadClient
      * ========================================================= */
 
     /**
-     * ✅ Steam AppID -> ITAD Game UUID 조회 (캐시 포함)
+     * Steam AppID -> ITAD Game UUID 조회 (캐시 포함)
      */
     public function lookupSteamAppId(string $steamAppId): ?string
     {
@@ -37,7 +37,7 @@ final class ItadClient
     }
 
     /**
-     * ✅ Steam SubID -> ITAD Game UUID 조회 (캐시 포함)
+     * Steam SubID -> ITAD Game UUID 조회 (캐시 포함)
      */
     public function lookupSteamSubId(string $steamSubId): ?string
     {
@@ -49,7 +49,7 @@ final class ItadClient
     }
 
     /**
-     * ✅ Steam BundleID -> ITAD Game UUID 조회 (캐시 포함)
+     * Steam BundleID -> ITAD Game UUID 조회 (캐시 포함)
      *
      * - ITAD lookup endpoint가 shop game id로 "bundle/24548" 형태를 받아주는 경우 동작합니다.
      * - 만약 ITAD 쪽에서 bundle 타입을 지원하지 않는 경우 null로 떨어질 수 있습니다(그 경우 Steam 번들 API만으로 처리).
@@ -219,7 +219,7 @@ final class ItadClient
      * ========================================================= */
 
     /**
-     * ✅ (기존 호환) Steam AppID -> [itadId, overview]
+     * (기존 호환) Steam AppID -> [itadId, overview]
      * - SteamDealHelper의 app 흐름이 의존하고 있으므로 유지
      */
     public function getOverviewBySteamAppId(string $steamAppId, string $country = 'KR'): array
@@ -233,7 +233,7 @@ final class ItadClient
     }
 
     /**
-     * ✅ (신규) Steam SubID -> [itadId, overview, history_low]
+     * (신규) Steam SubID -> [itadId, overview, history_low]
      */
     public function getDealBySteamSubId(string $steamSubId, string $country = 'KR'): array
     {
@@ -246,7 +246,7 @@ final class ItadClient
     }
 
     /**
-     * ✅ (신규) Steam BundleID -> [itadId, overview, history_low]
+     * (신규) Steam BundleID -> [itadId, overview, history_low]
      *
      * - ITAD overview가 current/lowest를 포함하는 경우가 있어,
      *   bundle도 sub/app과 동일하게 deal 스키마를 구성할 수 있습니다.
@@ -262,7 +262,7 @@ final class ItadClient
     }
 
     /**
-     * ✅ (선택) bundle에서 overview만 필요한 경우
+     * (선택) bundle에서 overview만 필요한 경우
      */
     public function getOverviewBySteamBundleId(string $steamBundleId, string $country = 'KR'): array
     {

@@ -22,10 +22,10 @@ final class DealController
     ) {}
 
     /**
-     * ✅ /api/deal/{steam_appid}
+     * /api/deal/{steam_appid}
      * (기존 유지) AppID 기준
      *
-     * ✅ 변경점(간접):
+     * 변경점(간접):
      * - SteamDealHelper::build()가 steam.app.dlc(count/total/items) 형태를 포함하도록 업데이트됨
      * - 컨트롤러는 그대로 "build 결과를 그대로 반환" (API 형태 일관성 유지)
      */
@@ -42,7 +42,7 @@ final class DealController
             ], 400);
         }
 
-        // ✅ SteamDealHelper에서 앱 + 리뷰 + ITAD + (B 방식 DLC)까지 묶어 내려줍니다.
+        // SteamDealHelper에서 앱 + 리뷰 + ITAD + (B 방식 DLC)까지 묶어 내려줍니다.
         $result = $this->dealHelper->build($steamAppId, 'KR');
         if ($result === null) {
             return $this->json($response, [
@@ -51,7 +51,7 @@ final class DealController
             ], 404);
         }
 
-        // ✅ 조회 성공 시점에서만 Redis 기록 (요구사항 그대로)
+        // 조회 성공 시점에서만 Redis 기록 (요구사항 그대로)
         $kind = (string)($result['meta']['kind'] ?? '');
         $id = (string)($result['meta']['id'] ?? '');
         $steamUrl = (string)($result['meta']['steam_url'] ?? '');
@@ -78,7 +78,7 @@ final class DealController
     }
 
     /**
-     * ✅ /api/deal/sub/{sub_id}
+     * /api/deal/sub/{sub_id}
      * - Steam packagedetails + ITAD(overview에서 current/lowest)
      */
     public function fetchSub(
@@ -108,14 +108,14 @@ final class DealController
         // 2) normalize
         $steamSub = $this->normalizeSteamSubPayload($subId, $steamPack);
 
-        // 3) ITAD (sub) : (⚠️ ItadClient 3번에서 getDealBySteamSubId가 overview를 포함하도록 맞출 예정)
+        // 3) ITAD (sub) : (ItadClient 3번에서 getDealBySteamSubId가 overview를 포함하도록 맞출 예정)
         $itad = $this->itadClient->getDealBySteamSubId($subId, $country);
         $overview = is_array($itad['overview'] ?? null) ? $itad['overview'] : null;
 
         // 4) build deal
         $deal = $this->buildSubDealPayload($steamSub, $overview);
 
-        // ✅ 응답 축소: deal 계산에만 사용한 내부 필드는 제거
+        // 응답 축소: deal 계산에만 사용한 내부 필드는 제거
         // NOTE: steam.sub.price는 클라이언트 fallback(ITAD current 없음) 및 디버그를 위해 유지합니다.
 
         $result = [
@@ -156,10 +156,10 @@ final class DealController
     }
 
     /**
-     * ✅ /api/deal/bundle/{bundle_id}
+     * /api/deal/bundle/{bundle_id}
      * - Steam ajaxresolvebundles + ITAD(overview에서 current/lowest)
      *
-     * ⚠️ 포인트
+     * 포인트
      * - Steam 쪽 bundle 가격은 포맷/단위가 케이스가 많아서: ITAD current/lowest가 있으면 그걸 "진짜 가격"으로 사용
      * - ITAD가 없을 때만 Steam formatted 가격(₩ …)을 KRW 정수로 파싱해 fallback
      */
@@ -190,14 +190,14 @@ final class DealController
         // 2) normalize
         $steamBundle = $this->normalizeSteamBundlePayload($bundleId, $bundle);
 
-        // 3) ITAD bundle deal (⚠️ ItadClient 3번에서 getDealBySteamBundleId 추가 예정)
+        // 3) ITAD bundle deal (ItadClient 3번에서 getDealBySteamBundleId 추가 예정)
         $itad = $this->itadClient->getDealBySteamBundleId($bundleId, $country);
         $overview = is_array($itad['overview'] ?? null) ? $itad['overview'] : null;
 
         // 4) build deal
         $deal = $this->buildBundleDealPayload($steamBundle, $overview);
 
-        // ✅ 응답 축소: deal 계산에만 사용한 내부 필드는 제거
+        // 응답 축소: deal 계산에만 사용한 내부 필드는 제거
         // NOTE: steam.bundle.price는 클라이언트 fallback(ITAD current 없음) 및 디버그를 위해 유지합니다.
 
         $result = [

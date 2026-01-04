@@ -64,7 +64,7 @@ export class DealApi {
                 throw new Error(json?.message || "API 응답이 올바르지 않습니다.");
             }
 
-            // ✅ 성공 시 TTL 캐시에 저장
+            // 성공 시 TTL 캐시에 저장
             this._cache.set(key, {
                 data: json.data,
                 expiresAt: Date.now() + this._ttlMs

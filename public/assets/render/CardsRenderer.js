@@ -32,7 +32,7 @@ export class CardsRenderer {
         };
     }
 
-    // ✅ toneClass 추가(최소 침습)
+    // toneClass 추가(최소 침습)
     createCard(title, main, desc, toneClass = "") {
         const tone = toneClass ? ` ${toneClass}` : "";
         return `
@@ -45,7 +45,7 @@ export class CardsRenderer {
     }
 
     // -----------------------------
-    // ✅ Tone 계산(4개 카드만 사용)
+    // Tone 계산(4개 카드만 사용)
     // -----------------------------
     #toneForPrice(discountPercent, isUnavailable, isUnknown, isFree) {
         if (isUnavailable || isUnknown) return "";
@@ -240,7 +240,7 @@ export class CardsRenderer {
         // -----------------------------
         const dealStatus = String(deal?.status || "").toLowerCase();
 
-        // ✅ 서버에서 purchasable_signals를 제공하면 그 값을 우선 사용(응답 축소 목적)
+        // 서버에서 purchasable_signals를 제공하면 그 값을 우선 사용(응답 축소 목적)
         const signals = steamItem?.purchasable_signals || null;
 
         const pkgCount = Number.isFinite(Number(signals?.packages_count))
@@ -305,7 +305,7 @@ export class CardsRenderer {
                 : "조금 더 시간이 지나면 평가가 모일 수 있어요.";
 
         // -----------------------------
-        // price card + ✅ tone
+        // price card + tone
         // -----------------------------
         let priceCard;
         if (isUnavailable) {
@@ -351,7 +351,7 @@ export class CardsRenderer {
         }
 
         // -----------------------------
-        // history card + ✅ tone
+        // history card + tone
         // -----------------------------
         const low = deal?.historical_low;
         const regularForHistory = deal?.current?.regular_price ?? steamItem?.price?.regular ?? null;
@@ -398,7 +398,7 @@ export class CardsRenderer {
                 );
 
         // -----------------------------
-        // sale / purchase info card + ✅ tone (할인 기간 카드일 때만)
+        // sale / purchase info card + tone (할인 기간 카드일 때만)
         // -----------------------------
         const expiry = deal?.current?.expiry_at;
         const expiryK = expiry ? formatDate(expiry) : null;
@@ -429,7 +429,7 @@ export class CardsRenderer {
                     );
 
         // -----------------------------
-        // 4th card (app=유저 반응) + ✅ tone
+        // 4th card (app=유저 반응) + tone
         // -----------------------------
         let fourthCard;
         if (kind === "app") {

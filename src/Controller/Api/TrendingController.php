@@ -28,7 +28,7 @@ final class TrendingController
      */
     public function list(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        // ✅ CCU(Ping) 집계: 기존 /api/ping 로직을 Trending 요청에 통합
+        // CCU(Ping) 집계: 기존 /api/ping 로직을 Trending 요청에 통합
         $fp = Fingerprint::fromRequest($request);
         $ccuKey = 'stats:ccu:' . date('YmdHi');
         $this->redis->sAdd($ccuKey, $fp);

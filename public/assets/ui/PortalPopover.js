@@ -33,14 +33,14 @@ export class PortalPopover {
         el.setAttribute("role", "dialog");
         el.setAttribute("aria-label", titleText);
 
-        // ✅ DLC/한글패치 모달과 동일한 컨테이너 톤
+        // DLC/한글패치 모달과 동일한 컨테이너 톤
         el.className =
             "fixed left-1/2 top-1/2 z-[9999] w-[min(720px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 " +
             "rounded-3xl border border-white/10 bg-neutral-950/95 p-5 shadow-2xl";
 
         const arr = Array.isArray(items) ? items : [];
 
-        // ✅ 카드 전체 클릭 + 모달 내부에서만 hover/focus 배경 강조
+        // 카드 전체 클릭 + 모달 내부에서만 hover/focus 배경 강조
         const listHtml = arr
             .map((x) => {
                 const name = escapeHtml(x?.name || "");

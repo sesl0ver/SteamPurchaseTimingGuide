@@ -58,7 +58,7 @@ class SteamAuthController
         $summary = $this->steam->fetchProfile($steamId);
         $s = is_array($summary) ? $summary : [];
 
-        // ✅ 요약 조회가 실패하더라도 steam_id는 저장해둡니다.
+        // 요약 조회가 실패하더라도 steam_id는 저장해둡니다.
         $this->users->upsertFromSteam([
             'steam_id' => $steamId,
             'persona_name' => (string)($s['personaname'] ?? ''),
@@ -73,7 +73,7 @@ class SteamAuthController
             'profilestate' => isset($s['profilestate']) ? (int)$s['profilestate'] : null,
         ]);
 
-        // ✅ 세션에 우리쪽 users.id 저장 (요구사항)
+        // 세션에 우리쪽 users.id 저장 (요구사항)
         // - upsert 이후 DB에서 조회하여 id를 확보합니다.
         // - 향후 회원 탈퇴/찜 목록 등 내부 기능에서 FK로 사용합니다.
         $userRow = $this->users->findBySteamId($steamId);

@@ -22,7 +22,7 @@ final class AppIdCooldownMiddleware implements MiddlewareInterface
         // (선택) GET에만 적용하고 싶으면 아래 주석 해제
         // if (strtoupper($request->getMethod()) !== 'GET') return $handler->handle($request);
 
-        // ✅ RouteContext 없이, request attributes에서 "route" 객체를 찾아 arguments 추출
+        // RouteContext 없이, request attributes에서 "route" 객체를 찾아 arguments 추출
         $args = $this->getRouteArguments($request);
 
         [$type, $id] = $this->extractTypeAndId($args);

@@ -16,14 +16,14 @@ export class Scroll {
         this._transfom = { x: 0, y: 0 };
         this._vel = { x: 0, y: 0 };
 
-        // ✅ 클릭/드래그 임계값(px)
+        // 클릭/드래그 임계값(px)
         this._clickThreshold = Number.isFinite(options.clickThreshold) ? options.clickThreshold : 5;
 
-        // ✅ 포인터 이동 기반 상태
+        // 포인터 이동 기반 상태
         this._downPoint = { x: 0, y: 0 };
         this._movedBeyondClickThreshold = false;
 
-        // ✅ 클릭 1회 차단 플래그(드래그였을 때만)
+        // 클릭 1회 차단 플래그(드래그였을 때만)
         this._suppressClick = false;
 
         // options
@@ -34,7 +34,7 @@ export class Scroll {
         // Pointer Events
         this._pointerId = null;
 
-        // ✅ 드래그 판정 후에만 pointer capture를 걸기 위한 상태
+        // 드래그 판정 후에만 pointer capture를 걸기 위한 상태
         this._hasPointerCapture = false;
 
         // 이벤트 핸들러 보관
@@ -75,7 +75,7 @@ export class Scroll {
 
         this._handlers.wheel = (e) => this._onWheel(e);
 
-        // ✅ 드래그였던 경우에만 click 1회 차단
+        // 드래그였던 경우에만 click 1회 차단
         this._handlers.clickCapture = (e) => {
             if (this._suppressClick) {
                 e.preventDefault();
@@ -208,7 +208,7 @@ export class Scroll {
         this._is_down = true;
         this._pointerId = e.pointerId;
 
-        // ✅ 초기화
+        // 초기화
         const p = this._getPoint(e);
         this._downPoint.x = p.x;
         this._downPoint.y = p.y;
@@ -230,7 +230,7 @@ export class Scroll {
 
         this.cancel();
 
-        // ✅ 여기서 setPointerCapture를 걸면 링크 click 합성이 깨질 수 있으므로 절대 걸지 않음
+        // 여기서 setPointerCapture를 걸면 링크 click 합성이 깨질 수 있으므로 절대 걸지 않음
 
         if (this._allowX()) this._main.style.cursor = "grabbing";
         this._main.style.userSelect = "none";
@@ -241,11 +241,11 @@ export class Scroll {
         if (!this._is_down || this._is_pause) return;
         if (this._pointerId != null && e.pointerId !== this._pointerId) return;
 
-        // ✅ 임계값 초과 시점에만 드래그로 전환
+        // 임계값 초과 시점에만 드래그로 전환
         if (!this._movedBeyondClickThreshold && this._distFromDown(e) > this._clickThreshold) {
             this._movedBeyondClickThreshold = true;
 
-            // ✅ 드래그로 확정되는 순간에만 pointer capture 적용(이때부터는 링크 클릭이 목적이 아님)
+            // 드래그로 확정되는 순간에만 pointer capture 적용(이때부터는 링크 클릭이 목적이 아님)
             try {
                 this._main.setPointerCapture?.(this._pointerId);
                 this._hasPointerCapture = true;
@@ -254,7 +254,7 @@ export class Scroll {
             }
         }
 
-        // ✅ 드래그로 확정된 경우에만 기본동작 억제 + 실제 이동
+        // 드래그로 확정된 경우에만 기본동작 억제 + 실제 이동
         if (!this._movedBeyondClickThreshold) return;
 
         e.stopPropagation();
@@ -300,7 +300,7 @@ export class Scroll {
         this._main.style.userSelect = "";
         this._main.style.webkitUserSelect = "";
 
-        // ✅ 드래그였으면 클릭 1회 차단
+        // 드래그였으면 클릭 1회 차단
         if (this._movedBeyondClickThreshold) {
             this._suppressClick = true;
 

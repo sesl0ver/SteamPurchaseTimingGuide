@@ -159,8 +159,8 @@ export class TrendingRenderer {
                         ? `<div class="mt-1 text-[11px] text-white/45">${escapeHtml(humanizeAgo(rawTime))}</div>`
                         : "";
 
-                    // ✅ div → a 로 변경: 접근성과 클릭 이동(기능) 강화
-                    // ✅ 드래그 후 클릭은 Scroll에서 차단하므로 충돌 최소
+                    // div → a 로 변경: 접근성과 클릭 이동(기능) 강화
+                    // 드래그 후 클릭은 Scroll에서 차단하므로 충돌 최소
                     return `
 <a href="${escapeHtml(internalUrl)}"
    data-kind="${escapeHtml(kind)}"

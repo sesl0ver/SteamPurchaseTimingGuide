@@ -26,7 +26,7 @@ export class ModalDlc {
 
         const arr = Array.isArray(items) ? items : [];
 
-        // ✅ 모달 내부에서만 hover 배경 강조: DLC 행도 가능한 경우 전체를 <a>로 구성
+        // 모달 내부에서만 hover 배경 강조: DLC 행도 가능한 경우 전체를 <a>로 구성
         const listHtml = arr
             .map((d) => {
                 const name = escapeHtml(d?.name || "");

@@ -46,10 +46,10 @@ $app->get('/dashboard/wishlist', [PageController::class, 'wishlistManage']);
 
 // 회원 탈퇴 (POST 권장, 지금은 GET으로 최소 구현)
 $app->post('/dashboard/delete', [AuthController::class, 'withdraw']);
-// ✅ 템플릿/기존 링크 호환: /auth/withdraw
+// 템플릿/기존 링크 호환: /auth/withdraw
 $app->post('/auth/withdraw', [AuthController::class, 'withdraw']);
 
-// ✅ 대시보드에서 찜 취소
+// 대시보드에서 찜 취소
 $app->post('/dashboard/wishlist/remove', [AuthController::class, 'removeWishlist']);
 
 $adminToken = (string)($_ENV['ADMIN_TOKEN'] ?? '');
