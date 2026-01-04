@@ -261,18 +261,6 @@ final class ItadClient
         ];
     }
 
-    /**
-     * (선택) bundle에서 overview만 필요한 경우
-     */
-    public function getOverviewBySteamBundleId(string $steamBundleId, string $country = 'KR'): array
-    {
-        $itadId = $this->lookupSteamBundleId($steamBundleId);
-
-        return [
-            'itadId' => $itadId,
-            'overview' => $itadId ? $this->getOverview($itadId, $country) : null,
-        ];
-    }
 
     /* =========================================================
      * Headers / Cache helpers

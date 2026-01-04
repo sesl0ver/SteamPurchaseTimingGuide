@@ -20,9 +20,7 @@ final class SteamDealHelper
     ) {}
 
     /**
-     * Steam AppID 기준 딜 정보 묶음 생성 (기존 유지)
-     * B 방식: DLC는 서버에서 집계/정규화된 형태로 포함(프론트 비용 절감)
-     * 추가: community_korean_patch(DB)에서 커뮤니티 한글패치 근거 병합
+     * Steam AppID 기준 딜 정보 묶음 생성
      */
     public function build(string|int $steamAppId, string $country = 'KR'): ?array
     {
@@ -57,12 +55,11 @@ final class SteamDealHelper
         // 특정 ID는 다른 ID에 가격 정보가 연결되어있어 우회시도
         if (array_key_exists($steamAppId, self::ITAD_PRICE_TARGET_OVERRIDES)) {
             $overrideSubId = self::ITAD_PRICE_TARGET_OVERRIDES[$steamAppId]['id'];
-            // $overrideType = self::ITAD_PRICE_TARGET_OVERRIDES[$steamAppId]['type']; TODO 차후 다른 타입이랑 연결된 경우가 있을 수 있으므로 살려둠.
             $itad = $this->itadClient->getDealBySteamSubId((string)$overrideSubId, $country);
-            $deal = $this->buildDealDataFromOverview($itad);
+            $deal = $this->buildDealDataFromOverview($itad['overview'] ?? null);
         } else {
             $itad = $this->itadClient->getOverviewBySteamAppId($steamAppId, $country);
-            $deal = $this->buildDealDataFromOverview($itad);
+            $deal = $this->buildDealDataFromOverview($itad['overview'] ?? null);
         }
 
         // 커뮤니티 한글패치(DB) 조회 + 파싱
@@ -73,8 +70,6 @@ final class SteamDealHelper
             'steam' => [
                 'app'     => $this->buildSteamAppData($appData, $dlc),
                 'reviews' => $this->buildSteamReviewData($reviews),
-
-                // 추가됨: 커뮤니티 한글패치 근거
                 'korean' => [
                     'community_patch' => $communityPatch,
                 ],
@@ -86,6 +81,86 @@ final class SteamDealHelper
                 'steam_url'   => "https://store.steampowered.com/app/{$steamAppId}/",
                 'country'     => $country,
                 'generated_at'=> date(DATE_ATOM),
+            ],
+        ];
+    }
+
+    /**
+     * Steam SubID 기준 딜 정보 묶음 생성
+     */
+    public function buildSub(string|int $subId, string $country = 'KR'): ?array
+    {
+        $subId = (string)$subId;
+        $steamPack = $this->steamClient->getSubData($subId, $country);
+        if (!($steamPack['success'] ?? false)) {
+            return null;
+        }
+
+        // ITAD (sub)
+        $itad = $this->itadClient->getDealBySteamSubId($subId, $country);
+        $overview = $itad['overview'] ?? null;
+
+        // build deal (with fallback)
+        $deal = $this->buildSubDealPayload($steamPack, $overview);
+
+        return [
+            'steam' => [
+                'sub' => [
+                    'id' => (int)$subId,
+                    'title' => (string)($steamPack['title'] ?? '패키지 상품'),
+                    'header_image' => $steamPack['header_image'] ?? null,
+                    'page_image' => $steamPack['page_image'] ?? null,
+                    'supported_languages' => 0,
+                    'price' => $steamPack['price'] ?? null,
+                    'release_date' => (string)($steamPack['release_date'] ?? ''),
+                ],
+            ],
+            'deal' => $deal,
+            'meta' => [
+                'kind' => 'sub',
+                'id' => $subId,
+                'steam_url' => "https://store.steampowered.com/sub/{$subId}/",
+                'generated_at' => date('c'),
+            ],
+        ];
+    }
+
+    /**
+     * Steam BundleID 기준 딜 정보 묶음 생성
+     */
+    public function buildBundle(string|int $bundleId, string $country = 'KR'): ?array
+    {
+        $bundleId = (string)$bundleId;
+        $bundle = $this->steamClient->getBundleData($bundleId, $country);
+        if (!($bundle['success'] ?? false)) {
+            return null;
+        }
+
+        // ITAD bundle deal
+        $itad = $this->itadClient->getDealBySteamBundleId($bundleId, $country);
+        $overview = $itad['overview'] ?? null;
+
+        // build deal (with fallback)
+        $deal = $this->buildBundleDealPayload($bundle, $overview);
+
+        return [
+            'steam' => [
+                'bundle' => [
+                    'id' => (int)$bundleId,
+                    'title' => (string)($bundle['title'] ?? '번들 상품'),
+                    'header_image' => $bundle['header_image'] ?? null,
+                    'page_image' => $bundle['page_image'] ?? null,
+                    'supported_languages' => 0,
+                    'price' => $bundle['price'] ?? null,
+                    'release_date' => '',
+                ],
+            ],
+            'deal' => $deal,
+            'meta' => [
+                'kind' => 'bundle',
+                'id' => $bundleId,
+                'steam_url' => "https://store.steampowered.com/bundle/{$bundleId}/",
+                'generated_at' => date('c'),
             ],
         ];
     }
@@ -283,13 +358,11 @@ final class SteamDealHelper
      * Deal data builders
      * ========================= */
 
-    private function buildDealDataFromOverview(?array $itad): array
+    private function buildDealDataFromOverview(?array $overview): array
     {
-        if (
-            !$itad ||
-            !($itad['itadId'] ?? null) ||
-            !($itad['overview'] ?? null)
-        ) {
+        $current = $this->extractCurrentFromOverview($overview);
+
+        if (!$current || $current['amount'] === null) {
             return [
                 'source'  => 'isthereanydeal',
                 'status'  => 'unavailable',
@@ -297,40 +370,167 @@ final class SteamDealHelper
             ];
         }
 
-        $o = $itad['overview'];
-
-        $currentPrice = $o['current']['price']['amount'] ?? null;
-        $lowestPrice  = $o['lowest']['price']['amount'] ?? null;
+        $low = $this->extractLowestFromOverview($overview);
+        $currentAmount = $current['amount'];
+        $lowestAmount = $low['amount'] ?? null;
 
         return [
             'source' => 'isthereanydeal',
             'status' => 'available',
 
-            'current' => [
-                'amount' => $currentPrice,
-                'currency' => $o['current']['price']['currency'] ?? null,
-                'discount_percent' => $o['current']['cut'] ?? null,
-                'regular_price' => $o['current']['regular']['amount'] ?? null,
-                'expiry_at' => $o['current']['expiry'] ?? null,
-                'shop' => $o['current']['shop']['name'] ?? null,
-            ],
+            'current' => $current,
 
-            'historical_low' => [
-                'amount' => $lowestPrice,
-                'currency' => $o['lowest']['price']['currency'] ?? null,
-                'discount_percent' => $o['lowest']['cut'] ?? null,
-                'last_seen_at' => $o['lowest']['timestamp'] ?? null,
+            'historical_low' => array_merge($low, [
                 'is_lowest_now' => (
-                    $currentPrice !== null &&
-                    $lowestPrice !== null &&
-                    $currentPrice === $lowestPrice
+                    $currentAmount !== null &&
+                    $lowestAmount !== null &&
+                    (int)$currentAmount === (int)$lowestAmount
                 ),
-            ],
+            ]),
 
             'links' => [
-                'deal' => $o['current']['url'] ?? null,
-                'game' => $o['urls']['game'] ?? null,
+                'deal' => $overview['current']['url'] ?? null,
+                'game' => $overview['urls']['game'] ?? null,
             ],
         ];
+    }
+
+    private function buildSubDealPayload(array $steamSub, ?array $overview): array
+    {
+        $steamPrice = $steamSub['price'] ?? null;
+        $fallbackCurrency = is_array($steamPrice) ? ($steamPrice['currency'] ?? 'KRW') : 'KRW';
+
+        $deal = [
+            'source' => 'isthereanydeal',
+            'status' => 'unavailable',
+            'message' => '가격 정보를 확인할 수 없습니다.',
+        ];
+
+        // 1) ITAD overview에서 current
+        $current = $this->extractCurrentFromOverview($overview);
+        if ($current && $current['amount'] !== null) {
+            $deal['status'] = 'available';
+            $deal['current'] = $current;
+            unset($deal['message']);
+        } else {
+            // 2) fallback: Steam packagedetails price
+            if (is_array($steamPrice) && isset($steamPrice['final'], $steamPrice['regular'])) {
+                $deal['status'] = 'available';
+                $deal['current'] = [
+                    'amount' => $steamPrice['final'],
+                    'currency' => $steamPrice['currency'] ?? $fallbackCurrency,
+                    'discount_percent' => $steamPrice['discount_percent'] ?? 0,
+                    'regular_price' => $steamPrice['regular'],
+                    'expiry_at' => null,
+                    'shop' => 'Steam',
+                ];
+                $deal['message'] = '패키지 상품은 가격 이력 정보를 제공하지 않을 수 있습니다.';
+            }
+        }
+
+        // 3) historical low
+        $low = $this->extractLowestFromOverview($overview);
+        if ($low && $low['amount'] !== null) {
+            $curAmount = $deal['current']['amount'] ?? null;
+            $isLowestNow = ($curAmount !== null && (int)$curAmount === (int)$low['amount']);
+
+            $deal['historical_low'] = array_merge($low, [
+                'is_lowest_now' => $isLowestNow,
+            ]);
+        }
+
+        return $deal;
+    }
+
+    private function buildBundleDealPayload(array $steamBundle, ?array $overview): array
+    {
+        $steamPrice = $steamBundle['price'] ?? null;
+        $fallbackCurrency = is_array($steamPrice) ? ($steamPrice['currency'] ?? 'KRW') : 'KRW';
+
+        $deal = [
+            'source' => 'isthereanydeal',
+            'status' => 'unavailable',
+            'message' => '가격 정보를 확인할 수 없습니다.',
+        ];
+
+        // 1) ITAD overview current 우선
+        $current = $this->extractCurrentFromOverview($overview);
+        if ($current && $current['amount'] !== null) {
+            $deal['status'] = 'available';
+            $deal['current'] = $current;
+            unset($deal['message']);
+        } else {
+            // 2) fallback: Steam bundle formatted 가격 파싱 결과
+            if (is_array($steamPrice) && isset($steamPrice['final'], $steamPrice['regular'])) {
+                $deal['status'] = 'available';
+                $deal['current'] = [
+                    'amount' => $steamPrice['final'],
+                    'currency' => $steamPrice['currency'] ?? $fallbackCurrency,
+                    'discount_percent' => $steamPrice['discount_percent'] ?? 0,
+                    'regular_price' => $steamPrice['regular'],
+                    'expiry_at' => null,
+                    'shop' => 'Steam',
+                ];
+                $deal['message'] = '번들 가격은 구매 구성에 따라 달라질 수 있습니다. Steam에서 최종 금액을 꼭 확인해 주세요.';
+            }
+        }
+
+        // 3) historical low
+        $low = $this->extractLowestFromOverview($overview);
+        if ($low && $low['amount'] !== null) {
+            $curAmount = $deal['current']['amount'] ?? null;
+            $isLowestNow = ($curAmount !== null && (int)$curAmount === (int)$low['amount']);
+
+            $deal['historical_low'] = array_merge($low, [
+                'is_lowest_now' => $isLowestNow,
+            ]);
+        }
+
+        return $deal;
+    }
+
+    private function extractCurrentFromOverview(?array $overview): ?array
+    {
+        if (!is_array($overview)) return null;
+
+        if (isset($overview['current']) && is_array($overview['current'])) {
+            $c = $overview['current'];
+            return [
+                'amount' => $this->toIntOrNull($c['price']['amountInt'] ?? $c['price']['amount'] ?? null),
+                'currency' => $c['price']['currency'] ?? null,
+                'discount_percent' => $this->toIntOrNull($c['cut'] ?? null) ?? 0,
+                'regular_price' => $this->toIntOrNull($c['regular']['amountInt'] ?? $c['regular']['amount'] ?? null),
+                'expiry_at' => $c['expiry'] ?? null,
+                'shop' => $c['shop']['name'] ?? null,
+            ];
+        }
+
+        return null;
+    }
+
+    private function extractLowestFromOverview(?array $overview): ?array
+    {
+        if (!is_array($overview)) return null;
+
+        if (isset($overview['lowest']) && is_array($overview['lowest'])) {
+            $l = $overview['lowest'];
+            return [
+                'amount' => $this->toIntOrNull($l['price']['amountInt'] ?? $l['price']['amount'] ?? null),
+                'currency' => $l['price']['currency'] ?? null,
+                'discount_percent' => $this->toIntOrNull($l['cut'] ?? null),
+                'last_seen_at' => $l['timestamp'] ?? null,
+            ];
+        }
+
+        return null;
+    }
+
+    private function toIntOrNull(mixed $v): ?int
+    {
+        if ($v === null) return null;
+        if (is_int($v)) return $v;
+        if (is_float($v)) return (int)$v;
+        if (is_string($v) && $v !== '' && is_numeric($v)) return (int)$v;
+        return null;
     }
 }

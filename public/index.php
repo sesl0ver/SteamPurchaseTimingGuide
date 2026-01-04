@@ -158,8 +158,6 @@ $container->set(ItadClient::class, function ($c) {
 $container->set(DealController::class, function ($c) {
     return new DealController(
         $c->get(SteamDealHelper::class),
-        $c->get(ItadClient::class),
-        $c->get(ClientInterface::class),
         $c->get(LookupTrendTracker::class),
     );
 });
