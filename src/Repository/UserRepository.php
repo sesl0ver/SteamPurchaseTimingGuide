@@ -169,11 +169,27 @@ SQL;
      */
     public function deleteById(string|int $id): bool
     {
-        // 찜 목록 등 연관 데이터는 FK ON DELETE CASCADE가 설정되어 있다고 가정하거나,
-        // 필요 시 여기서 명시적으로 삭제 로직을 추가할 수 있습니다.
-        // AuthController::withdraw 참고 시 찜 목록을 먼저 지우는 로직이 있음.
-        $stmt = $this->pdo->prepare('DELETE FROM users WHERE id = :id');
-        $stmt->bindValue(':id', $id, is_int($id) ? PDO::PARAM_INT : PDO::PARAM_STR);
-        return $stmt->execute();
+        $this->pdo->beginTransaction();
+        try {
+            $paramType = is_int($id) ? PDO::PARAM_INT : PDO::PARAM_STR;
+
+            // 찜 목록 명시적 삭제 (요구사항)
+            $stmtWish = $this->pdo->prepare('DELETE FROM wishlist WHERE user_id = :id');
+            $stmtWish->bindValue(':id', $id, $paramType);
+            $stmtWish->execute();
+
+            // 사용자 삭제
+            $stmtUser = $this->pdo->prepare('DELETE FROM users WHERE id = :id');
+            $stmtUser->bindValue(':id', $id, $paramType);
+            $ok = $stmtUser->execute();
+
+            $this->pdo->commit();
+            return $ok;
+        } catch (\Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $e;
+        }
     }
 }
