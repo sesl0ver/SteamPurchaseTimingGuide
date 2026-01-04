@@ -7,6 +7,7 @@ import {
     decodeHtmlEntities,
     stripHtml,
     clamp,
+    getDaysLeft,
 } from "../core/utils.js";
 
 export class CardsRenderer {
@@ -124,109 +125,12 @@ export class CardsRenderer {
         if (isUnavailable || isUnknown || isFree) return "";
         if (!expiryAt) return "tone-sale-off";
 
-        const d = this.#daysLeftSeoul(expiryAt);
+        const d = getDaysLeft(expiryAt);
         if (!Number.isFinite(d)) return "tone-sale-on";
 
         if (d <= 0) return "tone-sale-today";
         if (d <= 2) return "tone-sale-soon";
         return "tone-sale-on";
-    }
-
-    // -----------------------------
-
-    normalizeServerDlc(dlcNode, fallbackCurrency = "KRW") {
-        const node = dlcNode?.data ?? dlcNode;
-        if (!node) return { ok: false, count: 0, missingPrice: 0, total: null, currency: fallbackCurrency, items: [] };
-
-        if (Array.isArray(node.items) || typeof node.count === "number") {
-            const itemsRaw = Array.isArray(node.items) ? node.items : [];
-            const items = itemsRaw.map((d) => {
-                const id = d?.appid ?? d?.id ?? null;
-                const name = d?.name ?? d?.title ?? (id ? `DLC ${id}` : "DLC");
-                const p = d?.price || null;
-
-                const amount = p?.final ?? p?.amount ?? d?.amount ?? d?.price_final ?? d?.final_price ?? null;
-                const currency = p?.currency ?? d?.currency ?? node.currency ?? fallbackCurrency;
-
-                return {
-                    appid: id ? String(id) : null,
-                    name: String(name),
-                    price: { amount, currency },
-                };
-            });
-
-            const count = Number(node.count ?? items.length ?? 0);
-            const total =
-                node.total_final != null ? Number(node.total_final) : node.total != null ? Number(node.total) : null;
-
-            const missingPrice = items.reduce((acc, it) => (it?.price?.amount == null ? acc + 1 : acc), 0);
-
-            return {
-                ok: true,
-                items,
-                total: Number.isFinite(total) ? total : null,
-                currency: node.currency ?? fallbackCurrency,
-                count: Number.isFinite(count) ? count : items.length,
-                missingPrice,
-            };
-        }
-
-        return { ok: true, items: [], total: null, currency: fallbackCurrency, count: 0, missingPrice: 0 };
-    }
-
-    extractPackageOptionsFromPackageGroups(package_groups, currency = "KRW") {
-        const groups = Array.isArray(package_groups) ? package_groups : [];
-        const g = groups.find((x) => String(x?.name || "").toLowerCase() === "default") || groups[0] || null;
-
-        const subs = Array.isArray(g?.subs) ? g.subs : [];
-        const title = g?.title || "구매 옵션";
-
-        const items = subs
-            .map((s) => {
-                const packageid = s?.packageid;
-                const percentText = String(s?.percent_savings_text || "");
-                const dp = clamp(parseInt(percentText.replace(/[^\d]/g, ""), 10), 0, 95) || 0;
-
-                const raw = decodeHtmlEntities(String(s?.option_text || ""));
-                const plain = stripHtml(raw).replace(/\s+/g, " ").trim();
-
-                let name = plain;
-                const idx = plain.indexOf("₩");
-                if (idx > 0) name = plain.slice(0, idx).trim();
-                name = name.replace(/\s*-\s*$/, "").trim();
-
-                let original = null;
-                let final = null;
-
-                if (s?.price_in_cents_with_discount != null) {
-                    const cents = Number(s.price_in_cents_with_discount);
-                    if (Number.isFinite(cents)) final = Math.round(cents / 100);
-                }
-
-                const krwMatches = plain.match(/₩\s*[\d,]+/g) || [];
-                const nums = krwMatches.map(parseKrwTextToNumber).filter((n) => Number.isFinite(n));
-
-                if (nums.length >= 2) {
-                    const max = Math.max(...nums);
-                    const min = Math.min(...nums);
-                    original = original ?? max;
-                    final = final ?? min;
-                } else if (nums.length === 1) {
-                    final = final ?? nums[0];
-                }
-
-                return {
-                    packageid,
-                    name: name || "구매 옵션",
-                    discount_percent: dp,
-                    original_price: original,
-                    final_price: final,
-                    currency,
-                };
-            })
-            .filter((x) => x.packageid != null);
-
-        return { title, items };
     }
 
     render(payload) {
@@ -235,31 +139,12 @@ export class CardsRenderer {
         const steamItem = kind === "sub" ? steam?.sub : kind === "bundle" ? steam?.bundle : steam?.app;
         const isComingSoon = Boolean(steamItem?.is_coming_soon);
 
-        // -----------------------------
-        // 구매 가능/불가 판정(안정화 버전 유지)
-        // -----------------------------
         const dealStatus = String(deal?.status || "").toLowerCase();
-
-        // 서버에서 purchasable_signals를 제공하면 그 값을 우선 사용(응답 축소 목적)
         const signals = steamItem?.purchasable_signals || null;
 
-        const pkgCount = Number.isFinite(Number(signals?.packages_count))
-            ? Number(signals.packages_count)
-            : Array.isArray(steamItem?.packages)
-                ? steamItem.packages.length
-                : 0;
-
-        const groupCount = Number.isFinite(Number(signals?.package_groups_count))
-            ? Number(signals.package_groups_count)
-            : (() => {
-                const groupsRaw = steamItem?.package_groups || steamItem?.packageGroups || steam?.package_groups;
-                return Array.isArray(groupsRaw) ? groupsRaw.length : 0;
-            })();
-
-        const hasSteamPrice = typeof signals?.has_steam_price === "boolean"
-            ? signals.has_steam_price
-            : (steamItem?.price &&
-                (Number.isFinite(Number(steamItem.price.final)) || Number.isFinite(Number(steamItem.price.regular))));
+        const pkgCount = Number(signals?.packages_count || 0);
+        const groupCount = Number(signals?.package_groups_count || 0);
+        const hasSteamPrice = Boolean(signals?.has_steam_price);
 
         const isPurchasableBySteamSignals = pkgCount > 0 || groupCount > 0 || hasSteamPrice;
 
@@ -276,23 +161,13 @@ export class CardsRenderer {
             isPurchasableBySteamSignals &&
             (Number.isFinite(curAmount) ? curAmount === 0 : Number.isFinite(steamFinal) && steamFinal === 0);
 
-        // 출시 예정인 경우(coming soon)인데 가격이 0으로 들어오는 케이스가 있어,
-        // 무료 플레이로 오인되지 않도록 무료 판정은 coming soon보다 우선하지 않습니다.
         const isFreeEffective = isFree && !isComingSoon;
-
         const currency = deal?.current?.currency || steamItem?.price?.currency || "KRW";
 
-        // 한국어 패치
-        const communityPatch =
-            steam?.korean?.community_patch ??
-            steamItem?.korean?.community_patch ??
-            steamItem?.community_patch ??
-            null;
-        const rawPatchItems = Array.isArray(communityPatch?.items) ? communityPatch.items : [];
-        const patchItems = rawPatchItems;
-        const hasCommunityPatch = rawPatchItems.length > 0;
+        const communityPatch = steam?.korean?.community_patch ?? steamItem?.korean?.community_patch ?? null;
+        const patchItems = Array.isArray(communityPatch?.items) ? communityPatch.items : [];
+        const hasCommunityPatch = patchItems.length > 0;
 
-        // 리뷰(app만)
         const reviews = steam?.reviews;
         const total = Number(reviews?.total || 0);
         const pos = Number(reviews?.positive || 0);
@@ -350,9 +225,6 @@ export class CardsRenderer {
             }
         }
 
-        // -----------------------------
-        // history card + tone
-        // -----------------------------
         const low = deal?.historical_low;
         const regularForHistory = deal?.current?.regular_price ?? steamItem?.price?.regular ?? null;
         const lowEqualsRegular =
@@ -369,13 +241,7 @@ export class CardsRenderer {
             low?.amount != null
                 ? (() => {
                     const seen = formatDate(low.last_seen_at);
-
-                    const dpNum = Number.isFinite(Number(low.discount_percent))
-                        ? Number(low.discount_percent)
-                        : null;
-
-                    // 역대 최저가가 정가와 동일하면, "0% 최저가"처럼 보이는 표현을 피하고
-                    // 사용자가 즉시 이해할 수 있도록 "(정가)"를 명시합니다.
+                    const dpNum = Number.isFinite(Number(low.discount_percent)) ? Number(low.discount_percent) : null;
                     const titleText = lowEqualsRegular
                         ? "역대 최저가 (정가)"
                         : low.is_lowest_now
@@ -397,28 +263,16 @@ export class CardsRenderer {
                     historyTone
                 );
 
-        // -----------------------------
-        // sale / purchase info card + tone (할인 기간 카드일 때만)
-        // -----------------------------
         const expiry = deal?.current?.expiry_at;
         const expiryK = expiry ? formatDate(expiry) : null;
-
         const saleTone = this.#toneForSale(expiry, isUnavailable, isUnknownAvailability, isFreeEffective);
 
         const saleCard = isUnavailable
-            ? this.createCard(
-                "구매 정보",
-                "구매 불가",
-                "스토어 판매 종료, 지역 제한 등의 사유일 수 있습니다. Steam 상점에서 상태를 확인해 주세요."
-            )
+            ? this.createCard("구매 정보", "구매 불가", "스토어 판매 종료, 지역 제한 등의 사유일 수 있습니다.")
             : isUnknownAvailability
-                ? this.createCard(
-                    "구매 정보",
-                    "상태 확인 필요",
-                    "현재 구매 가능 여부를 확정하기 어려워요. Steam 상점에서 구매 버튼 노출 여부를 확인해 주세요."
-                )
+                ? this.createCard("구매 정보", "상태 확인 필요", "Steam 상점에서 구매 버튼 노출 여부를 확인해 주세요.")
                 : isComingSoon
-                    ? this.createCard("구매 정보", "출시 예정", "아직 출시 전이라 구매할 수 없습니다. Steam 상점에서 출시 일정과 구매 가능 여부를 확인해 주세요.")
+                    ? this.createCard("구매 정보", "출시 예정", "아직 출시 전이라 구매할 수 없습니다.")
                     : isFreeEffective
                         ? this.createCard("구매 정보", "무료 플레이", "언제든지 플레이할 수 있습니다.")
                         : this.createCard(
@@ -428,9 +282,6 @@ export class CardsRenderer {
                         saleTone
                     );
 
-        // -----------------------------
-        // 4th card (app=유저 반응) + tone
-        // -----------------------------
         let fourthCard;
         if (kind === "app") {
             const reviewTone = this.#toneForReview(total, pos, kind);
@@ -439,37 +290,27 @@ export class CardsRenderer {
             fourthCard = this.createCard("구성", "정보", "구성 정보는 상점 페이지에서 확인하세요.");
         }
 
-        // -----------------------------
-        // extra (app only) - tone 제외
-        // -----------------------------
         let dlcCard = "";
         let editionsCard = "";
         let koreanCard = "";
-
         let dlcCache = null;
         let editionsItems = [];
 
         if (kind === "app") {
-            // DLC: 0개여도 항상 노출(이전 수정 유지)
+            // DLC (서버 정규화 데이터 사용)
             {
-                const dlc = this.normalizeServerDlc(steamItem?.dlc || steam?.dlc, currency);
+                const dlc = steamItem?.dlc || steam?.dlc || null;
                 const count = Number(dlc?.count || 0);
-                const missing = Number(dlc?.missingPrice || 0);
-
-                const totalText =
-                    dlc?.total == null
-                        ? null
-                        : dlc.total === 0
-                            ? "무료 DLC 포함"
-                            : formatPrice(dlc.total, dlc.currency || currency);
-
-                const hasItems = Array.isArray(dlc?.items) && dlc.items.length > 0;
                 const hasDlc = count > 0;
+                const dlcItems = Array.isArray(dlc?.items) ? dlc.items : [];
+                const hasItems = dlcItems.length > 0;
 
                 const mainLine = hasDlc ? `총 ${count.toLocaleString()}개의 다운로드 콘텐츠.` : "다운로드 콘텐츠(DLC)가 없습니다.";
 
                 let subRow = "";
                 if (hasItems) {
+                    const totalText = dlc.total_final === 0 ? "무료 DLC 포함" : (dlc.total_final ? formatPrice(dlc.total_final, dlc.currency || currency) : null);
+                    const missing = Number(dlc.count || 0) - dlcItems.filter(it => it.price?.amount != null).length;
                     const subLeft = totalText ? `총 ${escapeHtml(totalText)}` : "합계를 확인할 수 없습니다";
                     const subExtra = missing > 0 ? ` · 가격 정보 없음 ${missing.toLocaleString()}개` : "";
 
@@ -494,21 +335,11 @@ export class CardsRenderer {
             ${subRow}
           </div>
         `;
-
                 dlcCache = dlc;
             }
 
-            // 구매 옵션 (서버 제공 purchase_options 우선, 없으면 legacy(package_groups) 파싱 fallback)
-            const serverPkg = steamItem?.purchase_options || null;
-            const pkg = serverPkg?.items
-                ? {
-                    title: serverPkg?.title || "구매 옵션",
-                    items: Array.isArray(serverPkg.items) ? serverPkg.items : [],
-                }
-                : (() => {
-                    const packageGroups = steamItem?.package_groups || steamItem?.packageGroups || steam?.package_groups;
-                    return this.extractPackageOptionsFromPackageGroups(packageGroups, currency);
-                })();
+            // 구매 옵션 (서버 정규화 데이터 사용)
+            const pkg = steamItem?.purchase_options || null;
             const items = Array.isArray(pkg?.items) ? pkg.items : [];
             const showOptionsBtn = items.length >= 2;
 
@@ -516,7 +347,6 @@ export class CardsRenderer {
                 const dp = Number(it.discount_percent || 0);
                 const finalText = it.final_price == null ? "가격 정보 없음" : formatPrice(it.final_price, it.currency || currency);
                 const origText = it.original_price == null ? "" : ` (정가 ${formatPrice(it.original_price, it.currency || currency)})`;
-
                 const label = `${it.name}${dp ? ` · ${dp}%` : ""} · ${finalText}${origText}`;
                 return {
                     name: label,
@@ -524,33 +354,25 @@ export class CardsRenderer {
                 };
             });
 
-            const editionsMainText =
-                items.length === 1 ? "1개의 구매 옵션만 존재합니다." : `${items.length.toLocaleString()}개의 구매 옵션이 존재합니다.`;
-
+            const editionsMainText = items.length === 1 ? "1개의 구매 옵션만 존재합니다." : `${items.length.toLocaleString()}개의 구매 옵션이 존재합니다.`;
             editionsCard = `
         <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
           <p class="text-sm font-semibold text-white/90">구매 옵션</p>
           <p class="mt-2 text-lg font-semibold text-white">${escapeHtml(editionsMainText)}</p>
-          ${
-                showOptionsBtn
-                    ? `<div class="mt-2 flex justify-end">
+          ${showOptionsBtn ? `<div class="mt-2 flex justify-end">
                    <button type="button" data-editions-btn
                      class="shrink-0 inline-flex items-center gap-1 text-xs text-white/60 underline underline-offset-4 hover:text-white transition"
                      aria-haspopup="dialog" aria-expanded="false">
                      옵션 보기 <span class="text-white/50">▾</span>
                    </button>
-                 </div>`
-                    : ""
-            }
+                 </div>` : ""}
         </div>
       `;
 
-            // 한국어 카드 (tone 제외)
             if (hasCommunityPatch) {
                 const koLevel = Number(steamItem?.supported_languages ?? 0);
                 const officialText = koLevel === 2 ? "공식 한국어(음성 포함)" : koLevel === 1 ? "공식 한국어 지원" : "공식 한국어 미지원";
-
-                const firstTitle = rawPatchItems[0]?.title || rawPatchItems[0]?.name || "";
+                const firstTitle = patchItems[0]?.title || patchItems[0]?.name || "";
                 const preview = firstTitle ? ` · ${escapeHtml(truncateText(String(firstTitle).split(/\r\n|\n|\r/)[0], 46))}` : "";
 
                 koreanCard = `
@@ -558,15 +380,13 @@ export class CardsRenderer {
             <p class="text-sm font-semibold text-white/90">한국어</p>
             <p class="mt-2 text-lg font-semibold text-white">${escapeHtml(officialText)}</p>
             <div class="mt-2 flex items-center justify-between gap-3">
-              <p class="text-xs text-white/60">유저 한글패치 ${rawPatchItems.length.toLocaleString()}개${preview}</p>
+              <p class="text-xs text-white/60">유저 한글패치 ${patchItems.length.toLocaleString()}개${preview}</p>
               <button type="button" data-kp-btn
                 class="shrink-0 inline-flex items-center gap-1 text-xs text-white/60 underline underline-offset-4 hover:text-white transition">
                 목록 보기 <span class="text-white/50">▾</span>
               </button>
             </div>
-            <p class="mt-3 text-[11px] leading-relaxed text-white/45">
-              ※ 유저 한글패치는 비공식 자료이며, 제공처의 설치 방법/주의사항 및 적용 대상 버전을 확인해 주세요.
-            </p>
+            <p class="mt-3 text-[11px] leading-relaxed text-white/45">※ 유저 한글패치는 비공식 자료이며, 제공처의 설치 방법/주의사항을 확인해 주세요.</p>
           </div>
         `;
             }
@@ -576,11 +396,7 @@ export class CardsRenderer {
 
         this.resultCardsEl.innerHTML = `
       <div class="grid gap-4 sm:grid-cols-2">
-        ${priceCard}
-        ${historyCard}
-        ${fourthCard}
-        ${saleCard}
-        ${extraCards}
+        ${priceCard}${historyCard}${fourthCard}${saleCard}${extraCards}
       </div>
     `;
 

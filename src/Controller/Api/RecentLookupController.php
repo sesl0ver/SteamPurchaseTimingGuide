@@ -8,13 +8,9 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Redis;
 
-final class TrendingController
+final class RecentLookupController
 {
-    private const int MAX_DAYS = 14;
     private const int MAX_LIMIT = 30;
-
-    private const int TMP_TTL_SECONDS = 120;           // 집계 임시 ZSET TTL (짧게)
-    private const int META_TTL_SECONDS = 90 * 86400;   // 메타 TTL(참고용, 기록쪽과 동일하게 유지 권장)
     private const string RECENT_KEY = 'lookups:recent';
 
     public function __construct(
@@ -22,53 +18,25 @@ final class TrendingController
     ) {}
 
     /**
-     * GET /api/trending?days=7&limit=10
-     * - 최근 N일 lookups:daily:* ZSET을 합산해서 상위 항목을 반환
-     * - 조회수는 노출하지 않고 rank만 반환
+     * GET /api/recent-lookups?limit=10
+     * - 최근 조회한 게임(lookups:recent) 목록을 반환
      */
-    public function list(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    public function listRecent(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        // CCU(Ping) 집계: 기존 /api/ping 로직을 Trending 요청에 통합
-        $fp = Fingerprint::fromRequest($request);
-        $ccuKey = 'stats:ccu:' . date('YmdHi');
-        $this->redis->sAdd($ccuKey, $fp);
-        $this->redis->expire($ccuKey, 180);
+        $this->recordStats($request);
 
         $q = $request->getQueryParams();
-
-        $days  = isset($q['days']) ? (int)$q['days'] : 7;
         $limit = isset($q['limit']) ? (int)$q['limit'] : 10;
-
-        $days  = max(1, min(self::MAX_DAYS, $days));
         $limit = max(1, min(self::MAX_LIMIT, $limit));
 
-        $todayYmd = date('Ymd');
+        // 최근 조회순으로 멤버 가져오기 (score가 타임스탬프)
+        $members = $this->redis->zRevRange(self::RECENT_KEY, 0, $limit - 1);
 
-        // 임시 집계 키(캐시)
-        $tmpKey = "lookups:tmp:trending:{$days}d:{$todayYmd}";
-
-        // 최근 N일 키 생성
-        $keys = [];
-        for ($i = 0; $i < $days; $i++) {
-            $ymd = date('Ymd', time() - ($i * 86400));
-            $keys[] = "lookups:daily:{$ymd}";
-        }
-
-        // tmpKey 없으면 생성
-        if (!$this->redis->exists($tmpKey)) {
-            // Redis는 없는 source key를 "빈 ZSET"처럼 취급하므로 그대로 union해도 보통 안전합니다.
-            $this->redis->zUnionStore($tmpKey, $keys);
-            $this->redis->expire($tmpKey, self::TMP_TTL_SECONDS);
-        }
-
-        // 상위 멤버(조회수는 필요 없으니 score 미포함)
-        $members = $this->redis->zRevRange($tmpKey, 0, $limit - 1);
         if (!$members) {
             return $this->json($response, [
                 'success' => true,
                 'data' => [
                     'meta' => [
-                        'days' => $days,
                         'limit' => $limit,
                         'as_of' => date('Y-m-d\TH:i:s\Z'),
                     ],
@@ -76,7 +44,6 @@ final class TrendingController
                 ],
             ]);
         }
-        $members = $this->redis->zRevRange(self::RECENT_KEY, 0, $limit - 1);
 
         // 메타를 파이프라인으로 묶어서 읽기
         $fields = ['kind', 'id', 'title', 'header_image', 'steam_url', 'last_seen_at'];
@@ -113,13 +80,20 @@ final class TrendingController
             'success' => true,
             'data' => [
                 'meta' => [
-                    'days' => $days,
                     'limit' => $limit,
                     'as_of' => date('Y-m-d\TH:i:s\Z'),
                 ],
                 'items' => $items,
             ],
         ]);
+    }
+
+    private function recordStats(ServerRequestInterface $request): void
+    {
+        $fp = Fingerprint::fromRequest($request);
+        $ccuKey = 'stats:ccu:' . date('YmdHi');
+        $this->redis->sAdd($ccuKey, $fp);
+        $this->redis->expire($ccuKey, 180);
     }
 
     private function parseMember(string $member): array

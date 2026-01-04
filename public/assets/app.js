@@ -11,7 +11,7 @@ import { ModalSearch } from "./ui/ModalSearch.js";
 import { HeaderRenderer } from "./render/HeaderRenderer.js";
 import { CardsRenderer } from "./render/CardsRenderer.js";
 import { NarrativeRenderer } from "./render/NarrativeRenderer.js";
-import { TrendingRenderer } from "./render/TrendingRenderer.js";
+import { RecentLookupRenderer } from "./render/RecentLookupRenderer.js";
 
 (() => {
     const appIdInput = $("#appId");
@@ -19,8 +19,8 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
     const resultArea = $("#resultArea");
     const gameHeader = $("#gameHeader");
     const resultCards = $("#resultCards");
-    const trendingSection = $("#trendingSection");
-    const trendingList = $("#trendingList");
+    const recentLookupSection = $("#recentLookupSection");
+    const recentLookupList = $("#recentLookupList");
     const wishlistSelectBtn = $("#wishlistSelectBtn");
 
     // 검색 UI
@@ -151,7 +151,7 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
     // ===== 조회 실행 =====
     // source 옵션:
     // - "user": 사용자가 입력/버튼/엔터로 실행
-    // - "trending": 트렌딩 카드 클릭으로 실행
+    // - "recent": 최근 조회 카드 클릭으로 실행
     // - "deeplink": 쿼리(kind,id)로 자동 실행
     async function runFetch({ source = "user", kindOverride = null, idOverride = null } = {}) {
         let parsed;
@@ -216,28 +216,27 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
         }
     });
 
-    // 트랜딩 목록
-    const trending = (trendingSection && trendingList)
-        ? new TrendingRenderer({
-            sectionEl: trendingSection,
-            listEl: trendingList,
+    // 최근 조회 목록
+    const recentLookup = (recentLookupSection && recentLookupList)
+        ? new RecentLookupRenderer({
+            sectionEl: recentLookupSection,
+            listEl: recentLookupList,
             api,
-            days: 7,
             limit: 10,
             intervalMs: 60_000, // 1분
         })
         : null;
 
     // 페이지 로드 시 바로 시작 (결과가 없어도 hidden 유지)
-    trending?.start();
+    recentLookup?.start();
 
-    // ===== Trending 카드 클릭 → 내부 조회 =====
+    // ===== 최근 조회 카드 클릭 → 내부 조회 =====
     document.addEventListener("click", (e) => {
         const card = e.target.closest("[data-kind][data-id]");
         if (!card) return;
 
-        // 트렌딩 카드가 아닌 다른 카드 클릭은 무시
-        if (!card.closest("#trendingSection")) return;
+        // 최근 조회 카드가 아닌 다른 카드 클릭은 무시
+        if (!card.closest("#recentLookupSection")) return;
 
         e.preventDefault();
 
@@ -253,7 +252,7 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
         else appIdInput.value = id;
 
         // 바로 조회 실행
-        runFetch({ source: "trending" });
+        runFetch({ source: "recent" });
     });
 
     // ===== 딥링크 자동 조회 =====
@@ -267,5 +266,5 @@ import { TrendingRenderer } from "./render/TrendingRenderer.js";
     }
 
     // 페이지 종료 시 정리
-    window.addEventListener("beforeunload", () => trending?.stop());
+    window.addEventListener("beforeunload", () => recentLookup?.stop());
 })();

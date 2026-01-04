@@ -16,7 +16,7 @@ use App\Controller\SteamAuthController;
 use App\Controller\Api\WishlistController;
 use App\Controller\Admin\DashboardController;
 use App\Controller\Api\DealController;
-use App\Controller\Api\TrendingController;
+use App\Controller\Api\RecentLookupController;
 use App\Controller\Api\StoreSearchController;
 use App\Middleware\ApiJsonResponseMiddleware;
 use App\Middleware\AdminGuardMiddleware;
@@ -76,7 +76,7 @@ $app->group('/api', function ($group) {
             'email'    => ['required' => true, 'type' => 'string', 'min' => 3, 'max' => 255],
             'password' => ['required' => true, 'type' => 'string', 'min' => 8, 'max' => 72],
         ]));*/
-    $group->get('/trending', [TrendingController::class, 'list']); // 최근 조회 상위
+    $group->get('/recent-lookups', [RecentLookupController::class, 'listRecent']); // 최근 조회 목록
 
     // Steam Store Search (server proxy)
     $group->get('/storesearch', [StoreSearchController::class, 'search']);

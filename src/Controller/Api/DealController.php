@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\Service\SteamDealHelper;
-use App\Service\LookupTrendTracker;
+use App\Service\LookupHistoryTracker;
 use App\Service\Fingerprint;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -12,8 +12,8 @@ use Psr\Http\Message\ServerRequestInterface;
 final class DealController
 {
     public function __construct(
-        private readonly SteamDealHelper $dealHelper,
-        private readonly LookupTrendTracker $trendTracker,
+        private readonly SteamDealHelper      $dealHelper,
+        private readonly LookupHistoryTracker $historyTracker,
     ) {}
 
     /**
@@ -101,7 +101,7 @@ final class DealController
         $headerImage = (string)($item['header_image'] ?? '');
 
         if ($kind !== '' && $id !== '') {
-            $this->trendTracker->record(
+            $this->historyTracker->record(
                 Fingerprint::fromRequest($request),
                 $kind,
                 $id,

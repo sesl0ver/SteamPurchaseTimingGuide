@@ -112,3 +112,41 @@ export function humanizeAgo(iso) {
 export function isNumeric (value) {
     return typeof value === "number" && Number.isFinite(value);
 }
+
+/**
+ * ISO 날짜 문자열 기준으로 오늘(Asia/Seoul)부터 며칠 남았는지 계산
+ */
+export function getDaysLeft(isoString) {
+    try {
+        if (!isoString) return null;
+        const d = new Date(isoString);
+        if (Number.isNaN(d.getTime())) return null;
+
+        const tz = "Asia/Seoul";
+        const fmt = new Intl.DateTimeFormat("en-CA", {
+            timeZone: tz,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        });
+
+        const untilParts = fmt.formatToParts(d);
+        const uy = untilParts.find(p => p.type === "year")?.value;
+        const um = untilParts.find(p => p.type === "month")?.value;
+        const ud = untilParts.find(p => p.type === "day")?.value;
+
+        const nowParts = fmt.formatToParts(new Date());
+        const ny = nowParts.find(p => p.type === "year")?.value;
+        const nm = nowParts.find(p => p.type === "month")?.value;
+        const nd = nowParts.find(p => p.type === "day")?.value;
+
+        if (!uy || !um || !ud || !ny || !nm || !nd) return null;
+
+        const todayStartUtc = Date.UTC(Number(ny), Number(nm) - 1, Number(nd));
+        const untilStartUtc = Date.UTC(Number(uy), Number(um) - 1, Number(ud));
+
+        return Math.ceil((untilStartUtc - todayStartUtc) / 86400000);
+    } catch {
+        return null;
+    }
+}

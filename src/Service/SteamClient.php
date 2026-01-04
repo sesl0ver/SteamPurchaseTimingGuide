@@ -43,7 +43,7 @@ final class SteamClient
     {
         try {
             $response = $this->http->request($method, $url, $options + [
-                    'timeout' => 15.0,
+                    'timeout' => 10.0,
                     'connect_timeout' => 5.0,
                     'http_errors' => false,
                     'headers' => [
@@ -77,7 +77,7 @@ final class SteamClient
     {
         try {
             $response = $this->http->request($method, $url, $options + [
-                    'timeout' => 15.0,
+                    'timeout' => 10.0,
                     'connect_timeout' => 5.0,
                     'http_errors' => false,
                     'headers' => [

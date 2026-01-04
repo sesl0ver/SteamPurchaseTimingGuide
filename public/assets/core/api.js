@@ -96,8 +96,9 @@ export class DealApi {
         this._cache.clear();
     }
 
-    async fetchTrending(days = 7, limit = 10, opts = {}) {
-        const url = `/api/trending?days=${encodeURIComponent(days)}&limit=${encodeURIComponent(limit)}`;
+    async fetchRecent(opts = {}) {
+        const limit = opts.limit || 10;
+        const url = `/api/recent-lookups?limit=${encodeURIComponent(limit)}`;
         const res = await fetch(url, {
             headers: { "Accept": "application/json" },
             signal: opts.signal
@@ -105,7 +106,7 @@ export class DealApi {
         const json = await res.json().catch(() => null);
 
         if (!res.ok || !json?.success) {
-            throw new Error(json?.message || "Trending API 응답이 올바르지 않습니다.");
+            throw new Error(json?.message || "Recent lookups API 응답이 올바르지 않습니다.");
         }
         return json.data;
     }

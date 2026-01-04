@@ -1,13 +1,12 @@
 import { escapeHtml, humanizeAgo } from "../core/utils.js";
 import { Scroll } from "../core/scroll.js";
 
-export class TrendingRenderer {
-    constructor({ sectionEl, listEl, api, days = 7, limit = 10, intervalMs = 120_000 }) {
+export class RecentLookupRenderer {
+    constructor({ sectionEl, listEl, api, limit = 10, intervalMs = 120_000 }) {
         this.sectionEl = sectionEl;
         this.listEl = listEl;
         this.api = api;
 
-        this.days = days;
         this.limit = limit;
         this.intervalMs = intervalMs;
 
@@ -54,7 +53,8 @@ export class TrendingRenderer {
         this.abortController = new AbortController();
 
         try {
-            const data = await this.api.fetchTrending(this.days, this.limit, {
+            const data = await this.api.fetchRecent({
+                limit: this.limit,
                 signal: this.abortController.signal,
             });
 
@@ -75,8 +75,8 @@ export class TrendingRenderer {
     _bindControlsOnce() {
         if (this._bound) return;
 
-        this.wrapEl = document.getElementById("trendingWrap");
-        this.scrollerEl = document.getElementById("trendingScroller");
+        this.wrapEl = document.getElementById("recentLookupWrap");
+        this.scrollerEl = document.getElementById("recentLookupScroller");
 
         // scroller 없으면 더 할 게 없음
         if (!this.scrollerEl) return;

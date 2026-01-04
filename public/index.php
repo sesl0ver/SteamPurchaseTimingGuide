@@ -23,7 +23,7 @@ use App\Repository\CommunityKoreanPatchRepository;
 use App\Repository\UserRepository;
 use App\Repository\WishlistRepository;
 use App\Service\CommunityKoreanPatchParser;
-use App\Service\LookupTrendTracker;
+use App\Service\LookupHistoryTracker;
 use App\Service\AbuseGuard;
 use App\Service\StatsTracker;
 use App\Middleware\AdminGuardMiddleware;
@@ -87,8 +87,8 @@ $container->set(RedisCache::class, function ($c) {
     return new RedisCache($c->get(\Redis::class));
 });
 
-$container->set(LookupTrendTracker::class, function ($c) {
-    return new LookupTrendTracker(
+$container->set(LookupHistoryTracker::class, function ($c) {
+    return new LookupHistoryTracker(
         $c->get(Redis::class),
         $c->get(AbuseGuard::class),
         $c->get(StatsTracker::class),
@@ -158,7 +158,7 @@ $container->set(ItadClient::class, function ($c) {
 $container->set(DealController::class, function ($c) {
     return new DealController(
         $c->get(SteamDealHelper::class),
-        $c->get(LookupTrendTracker::class),
+        $c->get(LookupHistoryTracker::class),
     );
 });
 

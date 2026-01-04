@@ -3,7 +3,7 @@
 // - deal.current / deal.historical_low / deal.current.expiry_at
 // 목표: 판단을 대신하지 않으면서 가독성과 분기 다양성을 극대화
 
-import { escapeHtml, humanizeAgo } from "../core/utils.js";
+import { escapeHtml, humanizeAgo, getDaysLeft } from "../core/utils.js";
 
 export class NarrativeRenderer {
     constructor({ resultAreaEl }) {
@@ -72,40 +72,14 @@ export class NarrativeRenderer {
             const d = new Date(isoString);
             if (Number.isNaN(d.getTime())) return null;
 
-            const tz = "Asia/Seoul";
-
-            const parts = new Intl.DateTimeFormat("ko-KR", {
-                timeZone: tz,
+            const untilText = new Intl.DateTimeFormat("ko-KR", {
+                timeZone: "Asia/Seoul",
                 year: "numeric",
-                month: "numeric",
+                month: "long",
                 day: "numeric",
-            }).formatToParts(d);
+            }).format(d);
 
-            const y = parts.find((p) => p.type === "year")?.value;
-            const m = parts.find((p) => p.type === "month")?.value;
-            const day = parts.find((p) => p.type === "day")?.value;
-            if (!y || !m || !day) return null;
-
-            const untilText = `${y}년 ${Number(m)}월 ${Number(day)}일`;
-
-            const now = new Date();
-            const nowParts = new Intl.DateTimeFormat("en-CA", {
-                timeZone: tz,
-                year: "numeric",
-                month: "2-digit",
-                day: "2-digit",
-            }).formatToParts(now);
-
-            const ny = nowParts.find((p) => p.type === "year")?.value;
-            const nm = nowParts.find((p) => p.type === "month")?.value;
-            const nd = nowParts.find((p) => p.type === "day")?.value;
-            if (!ny || !nm || !nd) return { untilText, daysLeft: null };
-
-            const todayUtc = Date.UTC(Number(ny), Number(nm) - 1, Number(nd));
-            const untilUtc = Date.UTC(Number(y), Number(m) - 1, Number(day));
-            const daysLeft = Math.ceil((untilUtc - todayUtc) / 86400000);
-
-            return { untilText, daysLeft };
+            return { untilText, daysLeft: getDaysLeft(isoString) };
         } catch {
             return null;
         }

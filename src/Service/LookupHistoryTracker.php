@@ -6,7 +6,7 @@ namespace App\Service;
 use Redis;
 use Throwable;
 
-final class LookupTrendTracker
+final class LookupHistoryTracker
 {
     private const int DAILY_TTL = 14 * 86400;
     private const int META_TTL  = 90 * 86400;
@@ -52,7 +52,7 @@ final class LookupTrendTracker
 
             $ymd = date('Ymd');
 
-            // 어뷰징/중복 차단은 "트렌딩 카운트"에만 적용 (최근 조회 갱신과 분리)
+            // 어뷰징/중복 차단은 "일별 조회 통계"에만 적용 (최근 조회 갱신과 분리)
             if ($this->abuse->allowLookup($fp, $kind, $id)) {
                 $this->redis->zIncrBy("lookups:daily:{$ymd}", 1, $member);
                 $this->redis->expire("lookups:daily:{$ymd}", self::DAILY_TTL);
