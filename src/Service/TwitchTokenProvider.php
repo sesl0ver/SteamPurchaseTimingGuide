@@ -11,6 +11,8 @@ final class TwitchTokenProvider
 {
     private const CACHE_KEY = 'twitch:token:v1';
     private const SAFETY_BUFFER_SECONDS = 60;
+    private const DEFAULT_TIMEOUT = 10.0;
+    private const CONNECT_TIMEOUT = 5.0;
 
     private ClientInterface $http;
     private RedisCache $cache;
@@ -127,8 +129,8 @@ final class TwitchTokenProvider
                     'Accept' => 'application/json',
                 ],
                 // 토큰 발급은 빠르게 실패하는 편이 낫습니다.
-                'timeout' => 10.0,
-                'connect_timeout' => 5.0,
+                'timeout' => self::DEFAULT_TIMEOUT,
+                'connect_timeout' => self::CONNECT_TIMEOUT,
                 // 4xx/5xx도 예외 대신 응답으로 받고 우리가 처리
                 'http_errors' => false,
             ]);

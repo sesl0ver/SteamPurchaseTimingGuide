@@ -8,12 +8,12 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use PDO;
 
-class AuthController
+final class AuthController
 {
     public function __construct(
-        private PDO $pdo,
-        private UserRepository $users,
-        private WishlistRepository $wishlists,
+        private readonly PDO                $pdo,
+        private readonly UserRepository     $users,
+        private readonly WishlistRepository $wishlists,
     ) {}
 
     public function withdraw(Request $request, Response $response): Response

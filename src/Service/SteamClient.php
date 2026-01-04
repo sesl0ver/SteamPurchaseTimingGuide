@@ -27,24 +27,30 @@ final class SteamClient
     private Client $http;
     private string $steamBaseUrl = 'https://store.steampowered.com';
 
+    private const float DEFAULT_TIMEOUT = 10.0;
+    private const float CONNECT_TIMEOUT = 5.0;
+
     public function __construct(
         private readonly RedisCache $cache,
         ?Client $http = null
     ) {
         // 기존 동작 유지 + 외부에서 주입 가능
-        $this->http = $http ?? new Client(['timeout' => 30]);
+        $this->http = $http ?? new Client([
+            'timeout' => self::DEFAULT_TIMEOUT,
+            'connect_timeout' => self::CONNECT_TIMEOUT,
+        ]);
     }
 
     /* =========================================================
      * Low-level request helpers
      * ========================================================= */
 
-    private function requestJson(string $method, string $url, array $options = []): array
+    private function request(string $method, string $url, array $options = []): \Psr\Http\Message\ResponseInterface
     {
         try {
             $response = $this->http->request($method, $url, $options + [
-                    'timeout' => 10.0,
-                    'connect_timeout' => 5.0,
+                    'timeout' => self::DEFAULT_TIMEOUT,
+                    'connect_timeout' => self::CONNECT_TIMEOUT,
                     'http_errors' => false,
                     'headers' => [
                         'Accept' => 'application/json',
@@ -52,18 +58,12 @@ final class SteamClient
                 ]);
 
             $status = $response->getStatusCode();
-            $raw = (string)$response->getBody();
-
             if ($status >= 400) {
+                $raw = (string)$response->getBody();
                 throw new RuntimeException("Steam Store API HTTP {$status}: {$raw}");
             }
 
-            $json = json_decode($raw, true);
-            if (!is_array($json)) {
-                throw new RuntimeException('Invalid JSON response from Steam Store API');
-            }
-
-            return $json;
+            return $response;
         } catch (GuzzleException $e) {
             throw new RuntimeException(
                 "Steam Store API request failed: {$e->getMessage()}",
@@ -73,33 +73,23 @@ final class SteamClient
         }
     }
 
+    private function requestJson(string $method, string $url, array $options = []): array
+    {
+        $response = $this->request($method, $url, $options);
+        $raw = (string)$response->getBody();
+
+        $json = json_decode($raw, true);
+        if (!is_array($json)) {
+            throw new RuntimeException('Invalid JSON response from Steam Store API');
+        }
+
+        return $json;
+    }
+
     private function requestText(string $method, string $url, array $options = []): string
     {
-        try {
-            $response = $this->http->request($method, $url, $options + [
-                    'timeout' => 10.0,
-                    'connect_timeout' => 5.0,
-                    'http_errors' => false,
-                    'headers' => [
-                        'Accept' => 'application/json',
-                    ],
-                ]);
-
-            $status = $response->getStatusCode();
-            $raw = (string)$response->getBody();
-
-            if ($status >= 400) {
-                throw new RuntimeException("Steam Store API HTTP {$status}: {$raw}");
-            }
-
-            return $raw;
-        } catch (GuzzleException $e) {
-            throw new RuntimeException(
-                "Steam Store API request failed: {$e->getMessage()}",
-                0,
-                $e
-            );
-        }
+        $response = $this->request($method, $url, $options);
+        return (string)$response->getBody();
     }
 
     private function normalizeCountry(string $country): string
@@ -143,7 +133,6 @@ final class SteamClient
                     'cc' => $cc,
                     'term' => $term,
                 ],
-                'timeout' => 10,
             ]);
 
             $total = (int)($json['total'] ?? 0);
@@ -343,7 +332,6 @@ final class SteamClient
                     'cc' => strtolower($country),
                     'l'  => 'koreana',
                 ],
-                'timeout' => 10,
             ]);
 
             if (!isset($json[$subId]) || !is_array($json[$subId])) {
@@ -427,7 +415,6 @@ final class SteamClient
                     'l'  => 'koreana',
                     'origin' => 'https://store.steampowered.com',
                 ],
-                'timeout' => 10,
             ]);
 
             if (!is_array($json) || count($json) < 1) {
@@ -532,7 +519,6 @@ final class SteamClient
                     'cc' => strtolower($country),
                     'l' => 'koreana',
                 ],
-                'timeout' => 10,
             ]);
 
             // 응답 예: { status:1, appid:"960170", name:"...", dlc:[...] }

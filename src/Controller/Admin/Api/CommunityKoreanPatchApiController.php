@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin\Api;
 
+use App\Http\ApiResponse;
 use App\Repository\CommunityKoreanPatchRepository;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -37,10 +38,7 @@ final class CommunityKoreanPatchApiController
 
         $result = $this->repo->listPaged($page, $perPage, $appIdFilter);
 
-        return $this->json($res, [
-            'success' => true,
-            'data' => $result,
-        ]);
+        return ApiResponse::success($res, $result);
     }
 
     public function get(ServerRequestInterface $req, ResponseInterface $res, array $args): ResponseInterface
@@ -49,16 +47,10 @@ final class CommunityKoreanPatchApiController
         $row = $this->repo->findRawByAppId($appId);
 
         if ($row === null) {
-            return $this->json($res->withStatus(404), [
-                'success' => false,
-                'message' => 'Not found',
-            ]);
+            return ApiResponse::error($res, 'Not found', 404, 404);
         }
 
-        return $this->json($res, [
-            'success' => true,
-            'data' => $row,
-        ]);
+        return ApiResponse::success($res, $row);
     }
 
     public function upsert(ServerRequestInterface $req, ResponseInterface $res): ResponseInterface
@@ -66,10 +58,7 @@ final class CommunityKoreanPatchApiController
         $body = (string)$req->getBody();
         $payload = json_decode($body, true);
         if (!is_array($payload)) {
-            return $this->json($res->withStatus(400), [
-                'success' => false,
-                'message' => 'Invalid JSON',
-            ]);
+            return ApiResponse::error($res, 'Invalid JSON', 400, 400);
         }
 
         $patchText = (string)($payload['patch_text'] ?? '');
@@ -77,19 +66,13 @@ final class CommunityKoreanPatchApiController
         $appIdRaw = trim((string)($payload['app_id'] ?? ''));
 
         if ($appIdRaw === '' || !ctype_digit($appIdRaw)) {
-            return $this->json($res->withStatus(422), [
-                'success' => false,
-                'message' => 'app_id is required',
-            ]);
+            return ApiResponse::error($res, 'app_id is required', 422, 422);
         }
 
         $ok = $this->repo->upsertOne((int)$appIdRaw, $name, $patchText);
 
-        return $this->json($res, [
-            'success' => true,
-            'data' => [
-                'updated' => $ok ? 1 : 0,
-            ],
+        return ApiResponse::success($res, [
+            'updated' => $ok ? 1 : 0,
         ]);
     }
 
@@ -98,21 +81,9 @@ final class CommunityKoreanPatchApiController
         $appId = (int)($args['app_id'] ?? 0);
         $ok = $this->repo->deleteByAppId($appId);
 
-        return $this->json($res, [
-            'success' => true,
-            'data' => [
-                'deleted' => $ok ? 1 : 0,
-            ],
+        return ApiResponse::success($res, [
+            'deleted' => $ok ? 1 : 0,
         ]);
     }
 
-    private function json(ResponseInterface $res, array $data): ResponseInterface
-    {
-        $payload = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        if ($payload === false) {
-            $payload = '{"success":false,"message":"json_encode failed"}';
-        }
-        $res->getBody()->write($payload);
-        return $res;
-    }
 }

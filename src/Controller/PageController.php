@@ -8,15 +8,15 @@ use Slim\Views\Twig;
 use App\Repository\WishlistRepository;
 use App\Repository\UserRepository;
 
-class PageController
+final class PageController
 {
     // 찜 목록 관리 페이지에서 한 페이지에 보여줄 개수(서버에서 조절)
     private const int WISHLIST_PER_PAGE = 10;
 
     public function __construct(
-        private Twig $view,
-        private WishlistRepository $wishlists,
-        private UserRepository $users,
+        private readonly Twig               $view,
+        private readonly WishlistRepository $wishlists,
+        private readonly UserRepository     $users,
     ) {}
 
     public function home(Request $request, Response $response): Response

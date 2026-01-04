@@ -8,11 +8,11 @@ use App\Repository\WishlistRepository;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
-class WishlistController
+final class WishlistController
 {
     public function __construct(
-        private WishlistRepository $wishlists,
-        private UserRepository $users,
+        private readonly WishlistRepository $wishlists,
+        private readonly UserRepository     $users,
     ) {}
 
     /**

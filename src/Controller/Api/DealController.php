@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Http\ApiResponse;
 use App\Service\SteamDealHelper;
 use App\Service\LookupHistoryTracker;
 use App\Service\Fingerprint;
@@ -26,17 +27,17 @@ final class DealController
     ): ResponseInterface {
         $id = (string)($args['steam_appid'] ?? $args['appId'] ?? $args['id'] ?? '');
         if ($id === '' || !preg_match('/^\d+$/', $id)) {
-            return $this->json($response, ['success' => false, 'message' => '유효하지 않은 Steam App ID입니다.'], 400);
+            return ApiResponse::error($response, '유효하지 않은 Steam App ID입니다.', 400, 400);
         }
 
         $result = $this->dealHelper->build($id, 'KR');
         if ($result === null) {
-            return $this->json($response, ['success' => false, 'message' => '게임 정보를 불러올 수 없습니다.'], 404);
+            return ApiResponse::error($response, '게임 정보를 불러올 수 없습니다.', 404, 404);
         }
 
         $this->recordTrend($request, $result);
 
-        return $this->json($response, ['success' => true, 'data' => $result]);
+        return ApiResponse::success($response, $result);
     }
 
     /**
@@ -49,17 +50,17 @@ final class DealController
     ): ResponseInterface {
         $id = (string)($args['sub_id'] ?? '');
         if ($id === '' || !preg_match('/^\d+$/', $id)) {
-            return $this->json($response, ['success' => false, 'message' => '유효하지 않은 Steam 패키지(Sub) ID입니다.'], 400);
+            return ApiResponse::error($response, '유효하지 않은 Steam 패키지(Sub) ID입니다.', 400, 400);
         }
 
         $result = $this->dealHelper->buildSub($id, 'KR');
         if ($result === null) {
-            return $this->json($response, ['success' => false, 'message' => 'Steam 패키지 정보를 불러올 수 없습니다.'], 404);
+            return ApiResponse::error($response, 'Steam 패키지 정보를 불러올 수 없습니다.', 404, 404);
         }
 
         $this->recordTrend($request, $result);
 
-        return $this->json($response, ['success' => true, 'data' => $result]);
+        return ApiResponse::success($response, $result);
     }
 
     /**
@@ -72,17 +73,17 @@ final class DealController
     ): ResponseInterface {
         $id = (string)($args['bundle_id'] ?? '');
         if ($id === '' || !preg_match('/^\d+$/', $id)) {
-            return $this->json($response, ['success' => false, 'message' => '유효하지 않은 Steam 번들(Bundle) ID입니다.'], 400);
+            return ApiResponse::error($response, '유효하지 않은 Steam 번들(Bundle) ID입니다.', 400, 400);
         }
 
         $result = $this->dealHelper->buildBundle($id, 'KR');
         if ($result === null) {
-            return $this->json($response, ['success' => false, 'message' => 'Steam 번들 정보를 불러올 수 없습니다.'], 404);
+            return ApiResponse::error($response, 'Steam 번들 정보를 불러올 수 없습니다.', 404, 404);
         }
 
         $this->recordTrend($request, $result);
 
-        return $this->json($response, ['success' => true, 'data' => $result]);
+        return ApiResponse::success($response, $result);
     }
 
     /**
@@ -112,9 +113,4 @@ final class DealController
         }
     }
 
-    private function json(ResponseInterface $response, array $payload, int $status = 200): ResponseInterface
-    {
-        $response->getBody()->write(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
-    }
 }

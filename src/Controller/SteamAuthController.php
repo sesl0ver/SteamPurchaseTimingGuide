@@ -17,12 +17,12 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  * 3) /auth/steam/callback -> 검증 + Web API로 유저 정보 조회 + DB upsert + 세션 저장
  * 4) 리다이렉트: / (시작 페이지)
  */
-class SteamAuthController
+final class SteamAuthController
 {
     public function __construct(
-        private SteamOpenIdService $openId,
-        private SteamService $steam,
-        private UserRepository $users,
+        private readonly SteamOpenIdService $openId,
+        private readonly SteamService       $steam,
+        private readonly UserRepository     $users,
     ) {}
 
     public function start(Request $request, Response $response): Response

@@ -10,7 +10,8 @@ use GuzzleHttp\Exception\GuzzleException;
 final class ItadClient
 {
     private const CACHE_PREFIX = 'itad:';
-    private const DEFAULT_TIMEOUT_SEC = 10;
+    private const DEFAULT_TIMEOUT = 10.0;
+    private const CONNECT_TIMEOUT = 5.0;
 
     public function __construct(
         private readonly ClientInterface $http,
@@ -86,7 +87,8 @@ final class ItadClient
                 [
                     'headers' => $this->headers(),
                     'json' => [$shopGameId],
-                    'timeout' => self::DEFAULT_TIMEOUT_SEC,
+                    'timeout' => self::DEFAULT_TIMEOUT,
+                    'connect_timeout' => self::CONNECT_TIMEOUT,
                 ]
             );
 
@@ -163,7 +165,8 @@ final class ItadClient
                         'country' => $country,
                         'shops' => [$this->steamShopId],
                     ],
-                    'timeout' => self::DEFAULT_TIMEOUT_SEC,
+                    'timeout' => self::DEFAULT_TIMEOUT,
+                    'connect_timeout' => self::CONNECT_TIMEOUT,
                 ]
             );
 
@@ -188,7 +191,8 @@ final class ItadClient
                         'key' => $this->apiKey,
                     ],
                     'json' => [$itadGameId],
-                    'timeout' => self::DEFAULT_TIMEOUT_SEC,
+                    'timeout' => self::DEFAULT_TIMEOUT,
+                    'connect_timeout' => self::CONNECT_TIMEOUT,
                 ]
             );
 

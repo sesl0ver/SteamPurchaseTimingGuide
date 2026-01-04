@@ -20,8 +20,7 @@ class ApiResponse
             'data'    => $data,
         ];
 
-        $response->getBody()->write(json_encode($payload));
-        return $response->withStatus($status);
+        return self::renderJson($response, $payload, $status);
     }
 
     public static function error(
@@ -36,8 +35,7 @@ class ApiResponse
             'message' => $message,
         ];
 
-        $response->getBody()->write(json_encode($payload));
-        return $response->withStatus($status);
+        return self::renderJson($response, $payload, $status);
     }
 
     public static function errorWithDetails(
@@ -57,7 +55,20 @@ class ApiResponse
             $payload['errors'] = $details;
         }
 
-        $response->getBody()->write(json_encode($payload));
-        return $response->withStatus($status);
+        return self::renderJson($response, $payload, $status);
+    }
+
+    private static function renderJson(Response $response, array $payload, int $status): Response
+    {
+        $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($json === false) {
+            $json = '{"success":false,"message":"JSON encoding error"}';
+        }
+
+        $response->getBody()->write($json);
+
+        return $response
+            ->withHeader('Content-Type', 'application/json')
+            ->withStatus($status);
     }
 }

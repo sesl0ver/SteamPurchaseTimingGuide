@@ -33,42 +33,42 @@ export class DealApi {
     }
 
     /**
-     * @param {"app"|"sub"|"bundle"} kind
-     * @param {string|number} id
-     * @param {{ force?: boolean }} opts
+     * 공통 요청 핸들러 (캐시 + 중복 호출 방지)
      */
-    async fetchDeal(kind, id, opts = {}) {
-        const key = this._key(kind, id);
+    async _request(key, url, opts = {}, ttlMs = this._ttlMs) {
         const force = opts.force === true;
 
-        // 1) TTL 내 캐시가 있으면 바로 반환
         if (!force) {
             const cached = this._getCached(key);
             if (cached) return cached;
         }
 
-        // 2) 동일 요청이 이미 진행 중이면 Promise 공유
         if (!force && this._inFlight.has(key)) {
             return this._inFlight.get(key);
         }
 
-        const url = this._url(kind, id);
-
         const p = (async () => {
             const res = await fetch(url, {
-                headers: { "Accept": "application/json" }
+                headers: { "Accept": "application/json" },
+                signal: opts.signal
             });
+
+            if (res.status === 401) {
+                throw new Error("401");
+            }
+
             const json = await res.json().catch(() => null);
 
             if (!res.ok || !json?.success) {
                 throw new Error(json?.message || "API 응답이 올바르지 않습니다.");
             }
 
-            // 성공 시 TTL 캐시에 저장
-            this._cache.set(key, {
-                data: json.data,
-                expiresAt: Date.now() + this._ttlMs
-            });
+            if (ttlMs > 0) {
+                this._cache.set(key, {
+                    data: json.data,
+                    expiresAt: Date.now() + ttlMs
+                });
+            }
 
             return json.data;
         })();
@@ -80,6 +80,17 @@ export class DealApi {
         } finally {
             this._inFlight.delete(key);
         }
+    }
+
+    /**
+     * @param {"app"|"sub"|"bundle"} kind
+     * @param {string|number} id
+     * @param {{ force?: boolean }} opts
+     */
+    async fetchDeal(kind, id, opts = {}) {
+        const key = this._key(kind, id);
+        const url = this._url(kind, id);
+        return this._request(key, url, opts, this._ttlMs);
     }
 
     /**
@@ -99,16 +110,8 @@ export class DealApi {
     async fetchRecent(opts = {}) {
         const limit = opts.limit || 10;
         const url = `/api/recent-lookups?limit=${encodeURIComponent(limit)}`;
-        const res = await fetch(url, {
-            headers: { "Accept": "application/json" },
-            signal: opts.signal
-        });
-        const json = await res.json().catch(() => null);
-
-        if (!res.ok || !json?.success) {
-            throw new Error(json?.message || "Recent lookups API 응답이 올바르지 않습니다.");
-        }
-        return json.data;
+        // Recent lookups는 캐시하지 않음 (매번 최신 상태 필요)
+        return this._request(`recent:${limit}`, url, opts, 0);
     }
 
     /**
@@ -123,52 +126,9 @@ export class DealApi {
         }
 
         const key = `search:${q.toLowerCase()}`;
-        const force = opts.force === true;
-
+        const url = `/api/storesearch?term=${encodeURIComponent(q)}`;
         // 검색 결과는 짧게 캐시(15초)
-        const prevTtl = this._ttlMs;
-        this._ttlMs = 15_000;
-
-        try {
-            if (!force) {
-                const cached = this._getCached(key);
-                if (cached) return cached;
-            }
-
-            if (!force && this._inFlight.has(key)) {
-                return this._inFlight.get(key);
-            }
-
-            const url = `/api/storesearch?term=${encodeURIComponent(q)}`;
-
-            const p = (async () => {
-                const res = await fetch(url, {
-                    headers: { "Accept": "application/json" },
-                    signal: opts.signal
-                });
-                const json = await res.json().catch(() => null);
-
-                if (!res.ok || !json?.success) {
-                    throw new Error(json?.message || "Search API 응답이 올바르지 않습니다.");
-                }
-
-                this._cache.set(key, {
-                    data: json.data,
-                    expiresAt: Date.now() + this._ttlMs
-                });
-                return json.data;
-            })();
-
-            this._inFlight.set(key, p);
-            try {
-                return await p;
-            } finally {
-                this._inFlight.delete(key);
-            }
-        } finally {
-            // TTL 복원
-            this._ttlMs = prevTtl;
-        }
+        return this._request(key, url, opts, 15_000);
     }
 
     /**
@@ -177,52 +137,8 @@ export class DealApi {
      */
     async wishlistList(opts = {}) {
         const key = "wishlist:list";
-        const force = opts.force === true;
-
+        const url = "/api/wishlist/list";
         // 찜 목록은 짧게 캐시(15초)
-        const prevTtl = this._ttlMs;
-        this._ttlMs = 15_000;
-
-        try {
-            if (!force) {
-                const cached = this._getCached(key);
-                if (cached) return cached;
-            }
-
-            if (!force && this._inFlight.has(key)) {
-                return this._inFlight.get(key);
-            }
-
-            const p = (async () => {
-                const res = await fetch("/api/wishlist/list", {
-                    headers: { "Accept": "application/json" },
-                    signal: opts.signal
-                });
-                const json = await res.json().catch(() => null);
-
-                if (res.status === 401) {
-                    throw new Error("401");
-                }
-
-                if (!res.ok || !json?.success) {
-                    throw new Error(json?.message || "Wishlist API 응답이 올바르지 않습니다.");
-                }
-
-                this._cache.set(key, {
-                    data: json.data,
-                    expiresAt: Date.now() + this._ttlMs
-                });
-                return json.data;
-            })();
-
-            this._inFlight.set(key, p);
-            try {
-                return await p;
-            } finally {
-                this._inFlight.delete(key);
-            }
-        } finally {
-            this._ttlMs = prevTtl;
-        }
+        return this._request(key, url, opts, 15_000);
     }
 }

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Http\ApiResponse;
 use App\Service\Fingerprint;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -33,15 +34,12 @@ final class RecentLookupController
         $members = $this->redis->zRevRange(self::RECENT_KEY, 0, $limit - 1);
 
         if (!$members) {
-            return $this->json($response, [
-                'success' => true,
-                'data' => [
-                    'meta' => [
-                        'limit' => $limit,
-                        'as_of' => date('Y-m-d\TH:i:s\Z'),
-                    ],
-                    'items' => [],
+            return ApiResponse::success($response, [
+                'meta' => [
+                    'limit' => $limit,
+                    'as_of' => date('Y-m-d\TH:i:s\Z'),
                 ],
+                'items' => [],
             ]);
         }
 
@@ -76,15 +74,12 @@ final class RecentLookupController
             ];
         }
 
-        return $this->json($response, [
-            'success' => true,
-            'data' => [
-                'meta' => [
-                    'limit' => $limit,
-                    'as_of' => date('Y-m-d\TH:i:s\Z'),
-                ],
-                'items' => $items,
+        return ApiResponse::success($response, [
+            'meta' => [
+                'limit' => $limit,
+                'as_of' => date('Y-m-d\TH:i:s\Z'),
             ],
+            'items' => $items,
         ]);
     }
 
@@ -114,14 +109,4 @@ final class RecentLookupController
         };
     }
 
-    private function json(ResponseInterface $response, array $payload, int $status = 200): ResponseInterface
-    {
-        $response->getBody()->write(
-            json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
-        );
-
-        return $response
-            ->withHeader('Content-Type', 'application/json')
-            ->withStatus($status);
-    }
 }

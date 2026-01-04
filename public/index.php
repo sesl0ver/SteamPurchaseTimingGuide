@@ -12,7 +12,6 @@ use App\Infrastructure\Database\PdoFactory;
 use App\Infrastructure\Cache\RedisFactory;
 use App\Infrastructure\Cache\RedisCache;
 use App\Controller\Api\DealController;
-use App\Controller\Api\PingController;
 use App\Steam\SteamWebApiClient;
 use App\Steam\SteamService;
 use App\Steam\SteamOpenIdService;
@@ -184,12 +183,6 @@ $container->set(App\Service\AbuseGuard::class,
 $container->set(App\Service\StatsTracker::class,
     fn($c) => new App\Service\StatsTracker($c->get(Redis::class))
 );
-
-$container->set(PingController::class, function ($c) {
-    return new PingController(
-        $c->get(Redis::class)
-    );
-});
 
 // Slim에 컨테이너 설정
 AppFactory::setContainer($container);
