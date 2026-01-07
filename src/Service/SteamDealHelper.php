@@ -62,6 +62,13 @@ final class SteamDealHelper
             $deal = $this->buildDealDataFromOverview($itad['overview'] ?? null);
         }
 
+        // 번들 정보 추가
+        $bundles = [];
+        if (!empty($itad['itadId'])) {
+            $rawBundles = $this->itadClient->getBundlesByItadId($itad['itadId']);
+            $bundles = $this->pruneBundles($rawBundles);
+        }
+
         // 커뮤니티 한글패치(DB) 조회 + 파싱
         $patchRow = $this->communityPatchRepo->findByAppId((int)$steamAppId);
         $communityPatch = $this->communityPatchParser->fromRow($patchRow);
@@ -75,6 +82,7 @@ final class SteamDealHelper
                 ],
             ],
             'deal' => $deal,
+            'bundles' => $bundles,
             'meta' => [
                 'kind'        => 'app',
                 'id'          => $steamAppId,
@@ -532,5 +540,39 @@ final class SteamDealHelper
         if (is_float($v)) return (int)$v;
         if (is_string($v) && $v !== '' && is_numeric($v)) return (int)$v;
         return null;
+    }
+    /**
+     * 번들 데이터에서 필요한 필드만 남김
+     */
+    private function pruneBundles(array $bundles): array
+    {
+        $result = [];
+        foreach ($bundles as $b) {
+            $tiers = [];
+            if (isset($b['tiers']) && is_array($b['tiers'])) {
+                foreach ($b['tiers'] as $t) {
+                    $games = [];
+                    if (isset($t['games']) && is_array($t['games'])) {
+                        foreach ($t['games'] as $g) {
+                            $games[] = [
+                                'title' => $g['title'] ?? 'Unknown Game',
+                                'banner145' => $g['assets']['banner145'] ?? null,
+                            ];
+                        }
+                    }
+                    $tiers[] = ['games' => $games];
+                }
+            }
+
+            $result[] = [
+                'title' => $b['title'] ?? 'Unknown Bundle',
+                'url'   => $b['url'] ?? $b['details'] ?? '#',
+                'page'  => [
+                    'name' => $b['page']['name'] ?? '',
+                ],
+                'tiers' => $tiers,
+            ];
+        }
+        return $result;
     }
 }

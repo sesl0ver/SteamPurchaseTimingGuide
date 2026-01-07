@@ -5,6 +5,7 @@ import { DealApi } from "./core/api.js";
 import { LoadingOverlay } from "./ui/LoadingOverlay.js";
 import { PortalPopover } from "./ui/PortalPopover.js";
 import { ModalDlc } from "./ui/ModalDlc.js";
+import { ModalBundle } from "./ui/ModalBundle.js";
 import { ModalKoreanPatch } from "./ui/ModalKoreanPatch.js";
 import { ModalSearch } from "./ui/ModalSearch.js";
 
@@ -35,6 +36,7 @@ import { RecentLookupRenderer } from "./render/RecentLookupRenderer.js";
     const loading = new LoadingOverlay();
     const portal = new PortalPopover();
     const dlcModal = new ModalDlc();
+    const bundleModal = new ModalBundle();
     const kpModal = new ModalKoreanPatch();
     const searchModal = new ModalSearch();
 
@@ -44,6 +46,7 @@ import { RecentLookupRenderer } from "./render/RecentLookupRenderer.js";
         resultCardsEl: resultCards,
         portal,
         dlcModal,
+        bundleModal,
         kpModal,
         narrative,
     });

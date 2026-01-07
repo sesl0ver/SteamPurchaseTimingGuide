@@ -11,10 +11,11 @@ import {
 } from "../core/utils.js";
 
 export class CardsRenderer {
-    constructor({ resultCardsEl, portal, dlcModal, kpModal, narrative }) {
+    constructor({ resultCardsEl, portal, dlcModal, bundleModal, kpModal, narrative }) {
         this.resultCardsEl = resultCardsEl;
         this.portal = portal;
         this.dlcModal = dlcModal;
+        this.bundleModal = bundleModal;
         this.kpModal = kpModal;
         this.narrative = narrative;
 
@@ -134,7 +135,7 @@ export class CardsRenderer {
     }
 
     #prepareContext(payload) {
-        const { steam, deal, meta } = payload;
+        const { steam, deal, meta, bundles } = payload;
         const kind = meta?.kind || "app";
         const steamItem = kind === "sub" ? steam?.sub : kind === "bundle" ? steam?.bundle : steam?.app;
         const isComingSoon = Boolean(steamItem?.is_coming_soon);
@@ -174,7 +175,7 @@ export class CardsRenderer {
         const rawSummary = reviews?.summary || "";
 
         return {
-            steam, deal, meta,
+            steam, deal, meta, bundles,
             kind, steamItem, isComingSoon, isUnavailable, isUnknownAvailability, isFreeEffective,
             currency, communityPatch, patchItems, hasCommunityPatch,
             reviews, total, pos, rawSummary
@@ -328,6 +329,54 @@ export class CardsRenderer {
         );
     }
 
+    #renderBundleCard(ctx) {
+        const bundles = Array.isArray(ctx.bundles) ? ctx.bundles : [];
+        if (bundles.length === 0) return "";
+
+        const count = bundles.length;
+        const mainLine = `총 ${count.toLocaleString()}개의 번들에 포함됨`;
+
+        // 첫 번째 번들 제목을 미리보기로 표시
+        const firstTitle = bundles[0].title || "";
+        const preview = firstTitle ? ` · ${escapeHtml(truncateText(firstTitle, 40))}` : "";
+
+        return `
+      <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-5 sm:col-span-2">
+        <p class="text-sm font-semibold text-white/90">번들 정보</p>
+        <p class="mt-2 text-lg font-semibold text-white">${escapeHtml(mainLine)}</p>
+        <div class="mt-2 flex items-center justify-between gap-3">
+          <p class="text-xs text-white/60">현재 구매 가능한 번들 목록${preview}</p>
+          <button type="button" data-bundle-btn
+            class="shrink-0 inline-flex items-center gap-1 text-xs text-white/60 underline underline-offset-4 hover:text-white transition">
+            목록 보기 <span class="text-white/50">▾</span>
+          </button>
+        </div>
+      </div>
+    `;
+    }
+
+
+    #renderBundleSummaryCard(ctx) {
+        const { kind, steamItem } = ctx;
+        if (kind !== "bundle") return "";
+
+        const appCount = Array.isArray(steamItem?.appids) ? steamItem.appids.length : 0;
+        const pkgCount = Array.isArray(steamItem?.packageids) ? steamItem.packageids.length : 0;
+
+        if (appCount <= 0 && pkgCount <= 0) return "";
+
+        const parts = [];
+        if (appCount > 0) parts.push(`앱 ${appCount.toLocaleString()}개`);
+        if (pkgCount > 0) parts.push(`패키지 ${pkgCount.toLocaleString()}개`);
+
+        const main = parts.join(" · ");
+        return this.createCard(
+            "구성 정보",
+            escapeHtml(main),
+            "번들에 포함된 항목 수 요약입니다. 상세 구성은 Steam 번들 페이지에서 확인해 주세요."
+        );
+    }
+
     #renderDlcCard(ctx) {
         const { steamItem, currency } = ctx;
         const dlc = steamItem?.dlc || null;
@@ -446,10 +495,15 @@ export class CardsRenderer {
         if (kind === "app") {
             dlcCache = steamItem?.dlc || null;
             const dlcCardHtml = this.#renderDlcCard(ctx);
+            const bundleCardHtml = this.#renderBundleCard(ctx);
             const optResult = this.#renderOptionsCard(ctx);
             editionsItems = optResult.items;
             const koreanCardHtml = this.#renderKoreanCard(ctx);
-            extraCardsHtml = `${dlcCardHtml}${optResult.html}${koreanCardHtml}`;
+            extraCardsHtml = `${dlcCardHtml}${optResult.html}${bundleCardHtml}${koreanCardHtml}`;
+        }
+
+        else if (kind === "bundle") {
+            extraCardsHtml = this.#renderBundleSummaryCard(ctx);
         }
 
         this.resultCardsEl.innerHTML = `
@@ -459,7 +513,7 @@ export class CardsRenderer {
     `;
 
         // 이벤트 바인딩
-        this.#bindEvents({ dlcCache, editionsItems, hasCommunityPatch, patchItems, communityPatch, currency });
+        this.#bindEvents({ dlcCache, bundles: ctx.bundles, editionsItems, hasCommunityPatch, patchItems, communityPatch, currency });
 
         // Narrative 렌더링
         const narrativeText = this.narrative.build({
@@ -469,6 +523,7 @@ export class CardsRenderer {
             isFree: ctx.isFreeEffective,
             deal,
             steamItem,
+            bundles: ctx.bundles,
             reviews: {
                 summary: this.REVIEW_TEXT_MAP[rawSummary] || rawSummary,
                 total: ctx.total,
@@ -487,13 +542,22 @@ export class CardsRenderer {
         };
     }
 
-    #bindEvents({ dlcCache, editionsItems, hasCommunityPatch, patchItems, communityPatch, currency }) {
+    #bindEvents({ dlcCache, bundles, editionsItems, hasCommunityPatch, patchItems, communityPatch, currency }) {
         const dlcBtn = this.resultCardsEl.querySelector("[data-dlc-btn]");
         if (dlcBtn && Array.isArray(dlcCache?.items) && dlcCache.items.length) {
             dlcBtn.addEventListener("click", (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 this.dlcModal.open("DLC 목록", dlcCache.items, dlcCache.currency || currency);
+            });
+        }
+
+        const bundleBtn = this.resultCardsEl.querySelector("[data-bundle-btn]");
+        if (bundleBtn && Array.isArray(bundles) && bundles.length) {
+            bundleBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.bundleModal.open("번들 목록", bundles);
             });
         }
 

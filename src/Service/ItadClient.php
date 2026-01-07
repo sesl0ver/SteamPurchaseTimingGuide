@@ -115,9 +115,6 @@ final class ItadClient
 
     /**
      * ITAD Game UUID -> Overview 조회
-     *
-     * - "v2 body 방식" 우선 시도
-     * - 실패하면 "legacy query 방식" fallback
      */
     public function getOverview(string $itadGameId, string $country = 'KR'): ?array
     {
@@ -134,13 +131,7 @@ final class ItadClient
             return ($cached === '__null__') ? null : $cached;
         }
 
-        // 1) v2 body 방식
-        $overview = $this->tryOverviewV2Body($itadGameId, $country);
-
-        // 2) fallback: legacy query 방식
-        if ($overview === null) {
-            $overview = $this->tryOverviewLegacyQuery($itadGameId, $country);
-        }
+        $overview = $this->tryOverview($itadGameId, $country);
 
         // overview는 자주 바뀔 수 있으니 15m (필요하면 1h까지 늘려도 됨)
         $this->cacheSetJson(
@@ -152,7 +143,7 @@ final class ItadClient
         return $overview;
     }
 
-    private function tryOverviewV2Body(string $itadGameId, string $country): ?array
+    private function tryOverview(string $itadGameId, string $country): ?array
     {
         try {
             $res = $this->http->request(
@@ -160,31 +151,6 @@ final class ItadClient
                 "{$this->apiBase}/games/overview/v2",
                 [
                     'headers' => $this->headers(),
-                    'json' => [
-                        'ids' => [$itadGameId],
-                        'country' => $country,
-                        'shops' => [$this->steamShopId],
-                    ],
-                    'timeout' => self::DEFAULT_TIMEOUT,
-                    'connect_timeout' => self::CONNECT_TIMEOUT,
-                ]
-            );
-
-            $data = json_decode((string)$res->getBody(), true);
-            return $this->extractOverview($data, $itadGameId);
-        } catch (GuzzleException) {
-            return null;
-        }
-    }
-
-    private function tryOverviewLegacyQuery(string $itadGameId, string $country): ?array
-    {
-        try {
-            $res = $this->http->request(
-                'POST',
-                "{$this->apiBase}/games/overview/v2",
-                [
-                    'headers' => $this->headersWithoutAuth(),
                     'query' => [
                         'country' => $country,
                         'shops' => $this->steamShopId,
@@ -265,27 +231,55 @@ final class ItadClient
         ];
     }
 
+    /**
+     * 특정 게임이 포함된 번들 목록 조회
+     */
+    public function getBundlesByItadId(string $itadId): array
+    {
+        $cacheKey = "itad:bundles:{$itadId}";
+        $cached = $this->cacheGetJson($cacheKey);
+        if ($cached !== null) {
+            return $cached === '__null__' ? [] : $cached;
+        }
+
+        try {
+            $res = $this->http->request(
+                'GET',
+                "{$this->apiBase}/games/bundles/v2",
+                [
+                    'headers' => $this->headers(),
+                    'query' => [
+                        'country' => 'KR',
+                        'key' => $this->apiKey,
+                        'id' => $itadId
+                    ],
+                    'timeout' => self::DEFAULT_TIMEOUT,
+                    'connect_timeout' => self::CONNECT_TIMEOUT,
+                ]
+            );
+
+            $bundles = json_decode((string)$res->getBody(), true);
+            if (!is_array($bundles)) {
+                $bundles = [];
+            }
+        } catch (GuzzleException) {
+            $bundles = [];
+        }
+
+        $this->cacheSetJson($cacheKey, empty($bundles) ? '__null__' : $bundles, 60 * 60 * 24);
+
+        return $bundles;
+    }
+
 
     /* =========================================================
      * Headers / Cache helpers
      * ========================================================= */
 
     /**
-     * Bearer 인증
-     */
-    private function headers(): array
-    {
-        return [
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/json',
-            'Authorization' => 'Bearer ' . $this->apiKey,
-        ];
-    }
-
-    /**
      * legacy query fallback용 (Authorization 제거)
      */
-    private function headersWithoutAuth(): array
+    private function headers(): array
     {
         return [
             'Accept' => 'application/json',

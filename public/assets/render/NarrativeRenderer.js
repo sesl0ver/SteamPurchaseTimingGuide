@@ -199,12 +199,13 @@ export class NarrativeRenderer {
         this.#analyzeDlc(ctx, items);
         this.#analyzeAchievements(ctx, items);
         this.#analyzeExpiry(ctx, items);
+        this.#analyzeBundles(ctx, items);
 
         return this.#renderNarrative(items, ctx);
     }
 
     #prepareContext(params) {
-        const { kind, deal, steamItem, reviews, hasCommunityPatch } = params;
+        const { kind, deal, steamItem, reviews, hasCommunityPatch, bundles } = params;
 
         const price = steamItem?.price || {};
         const steamRegular = Number(price?.regular);
@@ -246,10 +247,45 @@ export class NarrativeRenderer {
 
         return {
             kind, deal, steamItem, reviews, hasCommunityPatch,
+            bundles,
             curDp, currentAmount, listPrice,
             lowInfo, allTimeLow, lowWasNow, lowDp, lowCloseness,
             hasRealDiscountHistory, allTimeLowEqualsList
         };
+    }
+
+
+    #analyzeBundles(ctx, items) {
+        const { kind, bundles, steamItem } = ctx;
+
+        // App: ITAD 번들 포함 여부 요약
+        const b = Array.isArray(bundles) ? bundles : [];
+        if (kind === "app" && b.length > 0) {
+            const count = b.length;
+            const firstTitle = b[0]?.title || b[0]?.name || "";
+            const head = firstTitle ? String(firstTitle).split(/\r\n|\n|\r/)[0] : "";
+            const preview = head ? ` (${escapeHtml(head)})` : "";
+            this.#pushItem(
+                items,
+                "info",
+                70,
+                `이 게임은 현재 ${this.#strong(`${count.toLocaleString()}개`)}의 번들에 포함되어 있습니다${preview}. 번들 구성/가격은 번들별로 다를 수 있습니다.`,
+                "bundle:included_count"
+            );
+        }
+
+        // Bundle: 구성 요약(가능한 경우)
+        if (kind === "bundle") {
+            const appCount = Array.isArray(steamItem?.appids) ? steamItem.appids.length : 0;
+            const pkgCount = Array.isArray(steamItem?.packageids) ? steamItem.packageids.length : 0;
+            if (appCount > 0 || pkgCount > 0) {
+                const parts = [];
+                if (appCount > 0) parts.push(`앱 ${appCount.toLocaleString()}개`);
+                if (pkgCount > 0) parts.push(`패키지 ${pkgCount.toLocaleString()}개`);
+                const main = parts.join(" · ");
+                this.#pushItem(items, "info", 25, `이 번들은 ${this.#strong(main)}로 구성되어 있습니다.`, "bundle:composition");
+            }
+        }
     }
 
     #pushItem(items, category, weight, text, key) {
